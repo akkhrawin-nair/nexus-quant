@@ -1,4 +1,5 @@
 import datetime
+import time
 import random
 import math
 import os
@@ -463,6 +464,123 @@ def compute_indicator_radar(symbol: str, close_price: float):
     }
 
 
+# In-memory TTL cache for earnings data: {symbol: (timestamp, data)}
+EARNINGS_CALENDAR_CACHE = {}
+
+def get_earnings_calendar_info(symbol):
+    """
+    Institutional Earnings Calendar Guardrail:
+    Checks if a stock has quarterly earnings within 72 hours (3 trading days).
+    Holding directional swing setups through earnings introduces binary gap risk (-10% to -20%).
+    """
+    sym = symbol.strip().upper()
+    now = time.time()
+    if sym in EARNINGS_CALENDAR_CACHE:
+        ts, cached_data = EARNINGS_CALENDAR_CACHE[sym]
+        if now - ts < 3600 * 4:  # 4-hour cache
+            return cached_data
+
+    # Crypto / commodities have no earnings
+    if '-USD' in sym or sym in {'BTC-USD', 'ETH-USD', 'SOL-USD', 'UNG', 'USO', 'GLD', 'SLV'}:
+        res = {
+            'has_earnings': False,
+            'status': 'NO_EARNINGS_EVENT',
+            'days_to_earnings': 999,
+            'earnings_blackout': False,
+            'earnings_date': None
+        }
+        EARNINGS_CALENDAR_CACHE[sym] = (now, res)
+        return res
+
+    try:
+        t = yf.Ticker(sym)
+        cal = getattr(t, 'calendar', None)
+        edates = []
+        if cal and isinstance(cal, dict):
+            edates = cal.get('Earnings Date') or []
+            if not isinstance(edates, list):
+                edates = [edates]
+
+        today = datetime.date.today()
+        upcoming = None
+        for d in edates:
+            if isinstance(d, datetime.datetime):
+                d = d.date()
+            diff = (d - today).days
+            if diff >= 0:
+                upcoming = (diff, str(d))
+                break
+
+        if upcoming:
+            days_diff, date_str = upcoming
+            is_blackout = (days_diff <= 3)  # within 72 hours
+            res = {
+                'has_earnings': True,
+                'status': 'BLACKOUT_ACTIVE' if is_blackout else 'SAFE_WINDOW',
+                'days_to_earnings': days_diff,
+                'earnings_blackout': is_blackout,
+                'earnings_date': date_str
+            }
+        else:
+            res = {
+                'has_earnings': False,
+                'status': 'NO_IMMEDIATE_EVENT',
+                'days_to_earnings': 999,
+                'earnings_blackout': False,
+                'earnings_date': None
+            }
+    except Exception:
+        res = {
+            'has_earnings': False,
+            'status': 'LOOKUP_SKIPPED',
+            'days_to_earnings': 999,
+            'earnings_blackout': False,
+            'earnings_date': None
+        }
+
+    EARNINGS_CALENDAR_CACHE[sym] = (now, res)
+    return res
+
+
+SECTOR_TAXONOMY = {
+    'NVDA': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'AMD': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'TSM': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'ARM': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'MU': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'AVGO': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'ASML': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'QCOM': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'INTC': {'name': 'Semiconductors', 'icon': 'Cpu'},
+    'SMCI': {'name': 'AI Infrastructure', 'icon': 'Server'},
+    'AAPL': {'name': 'Mega-Cap Tech', 'icon': 'Laptop'},
+    'MSFT': {'name': 'Cloud & Enterprise', 'icon': 'Cloud'},
+    'GOOGL': {'name': 'AI & Advertising', 'icon': 'Search'},
+    'AMZN': {'name': 'E-Commerce & Cloud', 'icon': 'ShoppingBag'},
+    'META': {'name': 'Social & AI Platforms', 'icon': 'Share2'},
+    'TSLA': {'name': 'EV & Autonomous AI', 'icon': 'Zap'},
+    'PLTR': {'name': 'Big Data & Defense AI', 'icon': 'Shield'},
+    'BTC-USD': {'name': 'Crypto Ecosystem', 'icon': 'Coins'},
+    'ETH-USD': {'name': 'Smart Contracts Layer 1', 'icon': 'Layers'},
+    'COIN': {'name': 'Crypto Financials', 'icon': 'Coins'},
+    'MSTR': {'name': 'Bitcoin Treasury', 'icon': 'Vault'},
+    'HOOD': {'name': 'Retail Brokerage Fintech', 'icon': 'Smartphone'},
+    'PYPL': {'name': 'Digital Payments', 'icon': 'CreditCard'},
+    'XOM': {'name': 'Integrated Energy', 'icon': 'Flame'},
+    'CVX': {'name': 'Integrated Energy', 'icon': 'Flame'},
+    'UNG': {'name': 'Natural Gas Commodity', 'icon': 'Flame'},
+    'WMT': {'name': 'Consumer Staples', 'icon': 'ShoppingCart'},
+    'LLY': {'name': 'Biopharma & GLP-1', 'icon': 'Activity'},
+    'JNJ': {'name': 'Healthcare Conglomerate', 'icon': 'HeartPulse'},
+    'SPY': {'name': 'Broad Market (S&P 500)', 'icon': 'BarChart3'},
+    'QQQ': {'name': 'Tech Benchmark (Nasdaq-100)', 'icon': 'LineChart'},
+}
+
+def get_asset_sector(symbol):
+    sym = symbol.strip().upper()
+    return SECTOR_TAXONOMY.get(sym, {'name': 'Equities', 'icon': 'Briefcase'})
+
+
 def compute_golden_opportunity_meta(symbol, price, macd, macd_sig, radar):
     symbol = symbol.strip().upper()
     is_bullish_macd = macd > macd_sig
@@ -471,8 +589,12 @@ def compute_golden_opportunity_meta(symbol, price, macd, macd_sig, radar):
     pct_b = radar.get('pct_b', 50.0)
     macd_diff = macd - macd_sig
 
+    # Layer 0: Earnings Blackout & Sector Metadata
+    earnings_info = get_earnings_calendar_info(symbol)
+    sector_info = get_asset_sector(symbol)
+    is_earnings_blackout = earnings_info.get('earnings_blackout', False)
+
     # Layer 1: Macro Market Regime Check (QQQ & SPY benchmark)
-    # If the broader market benchmark is resilient (> -0.75%), risk-on regime is supportive.
     try:
         qqq_quote = fetch_live_quote_data('QQQ', 480.0)
         qqq_pct = sanitize_float(qqq_quote.get('daily_change_pct'), 0.25)
@@ -540,9 +662,17 @@ def compute_golden_opportunity_meta(symbol, price, macd, macd_sig, radar):
     confluence_score = int(min(97, max(52, round(raw_score))))
 
     # A genuine 70%+ Statistical Edge requires at least 4 passed layers and score >= 85
-    is_70_plus_edge = (passed_count >= 4 and confluence_score >= 85)
+    # CRITICAL INSTITUTIONAL RULE: If earnings are within 72h, automatically disqualify from 70%+ Edge!
+    is_70_plus_edge = (passed_count >= 4 and confluence_score >= 85 and not is_earnings_blackout)
 
-    if is_70_plus_edge:
+    if is_earnings_blackout:
+        duration = 'LOCKED (Hold Out of Position)'
+        days = 0
+        target_pct = 0.0
+        stop_pct = 0.0
+        confluence_score = min(confluence_score, 68)
+        reason = f"⛔ EARNINGS BLACKOUT ({earnings_info['days_to_earnings']}d to report on {earnings_info['earnings_date']}) — Capital Preservation Enforced"
+    elif is_70_plus_edge:
         duration = '3 - 7 Days (Swing Trade)'
         days = 5
         target_pct = round(8.0 + (confluence_score - 85) * 0.45, 1)
@@ -578,7 +708,12 @@ def compute_golden_opportunity_meta(symbol, price, macd, macd_sig, radar):
         'target_pct': target_pct,
         'stop_loss_level': f"${stop_loss:.2f} (-{stop_pct:.1f}%)",
         'stop_loss_num': stop_loss,
-        'trade_setup_reason': reason
+        'trade_setup_reason': reason,
+        'earnings_info': earnings_info,
+        'sector_info': sector_info,
+        'sector': sector_info['name'],
+        'sector_icon': sector_info['icon'],
+        'earnings_blackout': is_earnings_blackout
     }
 
 
@@ -753,6 +888,10 @@ def format_signal_with_live_data(signal):
         'macd_signal': macd_sig,
         'radar': radar,
         'golden_opportunity': golden_meta,
+        'sector': golden_meta.get('sector', 'Equities'),
+        'sector_icon': golden_meta.get('sector_icon', 'Briefcase'),
+        'earnings_info': golden_meta.get('earnings_info', {}),
+        'earnings_blackout': golden_meta.get('earnings_blackout', False),
         'candles': candles,
         'history': candles
     }

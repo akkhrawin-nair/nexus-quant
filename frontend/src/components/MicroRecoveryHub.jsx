@@ -347,10 +347,57 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                     >
                       {signals.map(s => (
                         <option key={s.symbol} value={s.symbol}>
-                          {s.symbol} (${Number(s.current_price || s.close_price).toFixed(2)})
+                          {s.symbol} (${Number(s.current_price || s.close_price).toFixed(2)}) {s.sector ? `• ${s.sector}` : ''} {s.earnings_blackout ? '⚠️ ER BLACKOUT' : ''}
                         </option>
                       ))}
                     </select>
+                    {/* Active Asset Sector & Earnings Metadata Ribbon */}
+                    <div style={{ display: 'flex', gap: '5px', marginTop: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {(() => {
+                        const activeSig = signals.find(s => s.symbol === calcSymbol)
+                        if (!activeSig) return null
+                        return (
+                          <>
+                            <span style={{
+                              fontSize: '0.62rem',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              fontWeight: 700,
+                              border: '1px solid #bfdbfe'
+                            }}>
+                              Sector: {activeSig.sector || 'Equities'}
+                            </span>
+                            {activeSig.earnings_blackout ? (
+                              <span style={{
+                                fontSize: '0.62rem',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: '#fee2e2',
+                                color: '#b91c1c',
+                                fontWeight: 800,
+                                border: '1px solid #fca5a5'
+                              }}>
+                                ⛔ ER in {activeSig.earnings_info?.days_to_earnings}d (BLACKOUT)
+                              </span>
+                            ) : activeSig.earnings_info?.has_earnings ? (
+                              <span style={{
+                                fontSize: '0.62rem',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: '#f1f5f9',
+                                color: '#475569',
+                                fontWeight: 600,
+                                border: '1px solid #cbd5e1'
+                              }}>
+                                📅 ER in {activeSig.earnings_info?.days_to_earnings}d
+                              </span>
+                            ) : null}
+                          </>
+                        )
+                      })()}
+                    </div>
                   </div>
                   <div className="calc-group">
                     <label>Entry Price ($)</label>
@@ -573,6 +620,32 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                       </div>
                     )
                   })()}
+
+                  {/* Earnings Blackout Guardrail Warning */}
+                  {(() => {
+                    const activeSig = signals.find(s => s.symbol === calcSymbol)
+                    if (!activeSig?.earnings_blackout) return null
+                    return (
+                      <div style={{
+                        marginTop: '0.6rem',
+                        padding: '0.6rem',
+                        background: '#fef2f2',
+                        border: '1px solid #f87171',
+                        borderRadius: '6px',
+                        color: '#991b1b',
+                        fontSize: '0.68rem',
+                        lineHeight: 1.4
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 800 }}>
+                          <AlertTriangle size={13} color="#dc2626" />
+                          <span>⛔ EARNINGS BLACKOUT ACTIVE (Reports in {activeSig.earnings_info?.days_to_earnings}d on {activeSig.earnings_info?.earnings_date})</span>
+                        </div>
+                        <div style={{ marginTop: '3px', color: '#b91c1c' }}>
+                          Wall Street quant rule: Never hold swing setups into quarterly earnings due to binary -15% gap risk. Wait until post-earnings volatility crush settles.
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Real Broker Order Copy & Live Tracking Buttons */}
@@ -639,6 +712,11 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                         <div className="sig-info">
                           <div className="sig-sym-row">
                             <span className="sig-symbol">{sig.symbol}</span>
+                            {sig.sector && (
+                              <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: '3px', background: '#eff6ff', color: '#1d4ed8', fontWeight: 700, border: '1px solid #bfdbfe' }}>
+                                {sig.sector}
+                              </span>
+                            )}
                             <span className="sig-badge" style={{ background: '#dcfce7', color: '#15803d', borderColor: '#86efac' }}>
                               70%+ EDGE ({score}%)
                             </span>

@@ -151,6 +151,24 @@ const SignalCard = memo(({
           <span className="ticker-symbol">{signal.symbol}</span>
           <span className="ticker-type">{capsuleMeta.label}</span>
 
+          {/* Sector Diversity Pill */}
+          {signal.sector && (
+            <span className="ticker-sector-pill font-mono" title={`Sector: ${signal.sector}`}>
+              {signal.sector}
+            </span>
+          )}
+
+          {/* Earnings Timeline & Blackout Badge */}
+          {signal.earnings_blackout ? (
+            <span className="earnings-pill blackout font-mono" title={`Earnings in ${signal.earnings_info?.days_to_earnings} days on ${signal.earnings_info?.earnings_date}. High binary gap risk.`}>
+              ⛔ ER {signal.earnings_info?.days_to_earnings}d
+            </span>
+          ) : signal.earnings_info?.has_earnings ? (
+            <span className="earnings-pill safe font-mono" title={`Next earnings: ${signal.earnings_info?.earnings_date} (${signal.earnings_info?.days_to_earnings} days away). Safe trading window.`}>
+              📅 ER {signal.earnings_info?.days_to_earnings}d
+            </span>
+          ) : null}
+
           {/* Risk Rating Badge */}
           <span
             className={`risk-badge-pill ${riskMeta.badgeClass}`}
@@ -210,6 +228,14 @@ const SignalCard = memo(({
             : `MACD line broke below signal line for ${signal.symbol} with negative momentum divergence (${diff.toFixed(2)}), indicating increased downside risk.`}
         </div>
       </div>
+
+      {/* Earnings Blackout Alert Banner */}
+      {signal.earnings_blackout && (
+        <div className="earnings-blackout-card-alert font-mono" onClick={(e) => e.stopPropagation()}>
+          <AlertCircle size={12} />
+          <span>⛔ EARNINGS BLACKOUT ({signal.earnings_info?.days_to_earnings}d to ER) — Swing Entry Locked</span>
+        </div>
+      )}
 
       {/* Institutional 5-Layer Confluence Checklist Bar */}
       {signal.golden_opportunity?.layers && signal.golden_opportunity.layers.length > 0 && (

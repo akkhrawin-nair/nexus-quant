@@ -14607,4 +14607,61 @@ a[title*="TradingView"], #tv-attr-logo, .tv-lightweight-charts-watermark {
   color: #b91c1c;
   border: 1px solid #fecaca;
   opacity: 0.75;
+}
+
+/* Sector & Earnings Blackout Guardrail Badges */
+.ticker-sector-pill {
+  font-size: 0.62rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  border: 1px solid #bfdbfe;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.earnings-pill {
+  font-size: 0.6rem;
+  padding: 0.12rem 0.38rem;
+  border-radius: 4px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.earnings-pill.safe {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.earnings-pill.blackout {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  animation: pulse-danger 2s infinite ease-in-out;
+}
+
+.earnings-blackout-card-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  margin: 0.4rem 0 0.2rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+@keyframes pulse-danger {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
