@@ -54,7 +54,9 @@ import {
   Briefcase,
   Target,
   ShieldCheck,
-  Video
+  Video,
+  Copy,
+  Check
 } from 'lucide-react'
 
 import './App.css'
