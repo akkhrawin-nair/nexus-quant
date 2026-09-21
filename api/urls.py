@@ -16,7 +16,8 @@ from .views import (
     AIBrainFusionView,
     BudgetScalpFinderView,
     Options6MoBacktestView,
-    MarketPingView
+    MarketPingView,
+    TenYearBacktestView
 )
 
 router = DefaultRouter()
@@ -42,4 +43,5 @@ urlpatterns = [
     path('options/backtest-6mo/', Options6MoBacktestView.as_view(), name='options-backtest-6mo'),
     path('options/backtest/', Options6MoBacktestView.as_view(), name='options-backtest'),
     path('market/ping/', MarketPingView.as_view(), name='market-ping'),
+    path('strategies/backtest-10year/', TenYearBacktestView.as_view(), name='strategies-backtest-10year'),
 ]
