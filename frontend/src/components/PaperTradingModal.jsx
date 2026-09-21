@@ -29,6 +29,7 @@ import {
   openPosition,
   closePosition,
   resetPortfolio,
+  addFunds,
   calculatePortfolioStats,
   exportPortfolioHistoryToCSV
 } from '../utils/paperTradingStorage'
@@ -47,7 +48,7 @@ export default function PaperTradingModal({
   const [tradeSymbol, setTradeSymbol] = useState(initialTicker || 'NVDA')
   const [tradeAmount, setTradeAmount] = useState(() => {
     const p = getPortfolio()
-    return p.balance <= 50 ? Number((p.balance * 0.25).toFixed(2)) || 1.50 : 1000
+    return p.balance <= 50 ? String(Number((p.balance * 0.25).toFixed(2)) || '1.50') : '1000'
   })
   const [customStopLoss, setCustomStopLoss] = useState('')
   const [customTakeProfit, setCustomTakeProfit] = useState('')
@@ -156,6 +157,23 @@ export default function PaperTradingModal({
     e?.preventDefault()
     setStatusMessage(null)
 
+    const numAmount = parseFloat(tradeAmount)
+    if (!numAmount || isNaN(numAmount) || numAmount <= 0) {
+      setStatusMessage({
+        type: 'ERROR',
+        text: 'Please enter a valid investment amount.'
+      })
+      return
+    }
+
+    if (numAmount > portfolio.balance) {
+      setStatusMessage({
+        type: 'ERROR',
+        text: `Insufficient cash. Available: $${portfolio.balance.toFixed(2)}`
+      })
+      return
+    }
+
     const assetType = selectedSignal?.asset_type || (tradeSymbol.includes('-USD') ? 'Crypto' : 'Stock')
     const reason = selectedSignal?.golden_opportunity?.trade_setup_reason || 'Algorithmic Breakout Setup Execution'
 
@@ -163,7 +181,7 @@ export default function PaperTradingModal({
       symbol: tradeSymbol,
       assetType,
       entryPrice: currentPriceForSelected,
-      amount: tradeAmount,
+      amount: numAmount,
       stopLoss: customStopLoss ? Number(customStopLoss) : null,
       takeProfit: customTakeProfit ? Number(customTakeProfit) : null,
       reason
@@ -660,8 +678,8 @@ export default function PaperTradingModal({
                             <button
                               key={item.label}
                               type="button"
-                              onClick={() => setTradeAmount(item.val)}
-                              className={`pt-quick-btn ${tradeAmount === item.val ? 'active' : ''}`}
+                              onClick={() => setTradeAmount(String(item.val))}
+                              className={`pt-quick-btn ${tradeAmount === String(item.val) ? 'active' : ''}`}
                             >
                               {item.label} (${item.val})
                             </button>
@@ -672,16 +690,16 @@ export default function PaperTradingModal({
                               <button
                                 key={amt}
                                 type="button"
-                                onClick={() => setTradeAmount(amt)}
-                                className={`pt-quick-btn ${tradeAmount === amt ? 'active' : ''}`}
+                                onClick={() => setTradeAmount(String(amt))}
+                                className={`pt-quick-btn ${tradeAmount === String(amt) ? 'active' : ''}`}
                               >
                                 ${amt.toLocaleString()}
                               </button>
                             ))}
                             <button
                               type="button"
-                              onClick={() => setTradeAmount(Math.floor(portfolio.balance))}
-                              className={`pt-quick-btn ${tradeAmount === Math.floor(portfolio.balance) ? 'active' : ''}`}
+                              onClick={() => setTradeAmount(String(Number(portfolio.balance.toFixed(2))))}
+                              className={`pt-quick-btn ${tradeAmount === String(Number(portfolio.balance.toFixed(2))) ? 'active' : ''}`}
                             >
                               Max (${Math.floor(portfolio.balance).toLocaleString()})
                             </button>
@@ -689,19 +707,81 @@ export default function PaperTradingModal({
                         )}
                       </div>
 
-                      <input
-                        type="number"
-                        step="any"
-                        min="0.05"
-                        max={portfolio.balance}
-                        value={tradeAmount}
-                        onChange={(e) => setTradeAmount(Number(e.target.value))}
-                        className="pt-input"
-                        placeholder={portfolio.balance <= 50 ? "e.g. 1.50" : "e.g. 1000"}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
-                        <span>Available Cash: ${portfolio.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                        <span>Estimated Shares: {currentPriceForSelected > 0 ? (tradeAmount / currentPriceForSelected < 1 ? (tradeAmount / currentPriceForSelected).toFixed(4) : (tradeAmount / currentPriceForSelected).toFixed(2)) : '0'}</span>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={tradeAmount}
+                          onChange={(e) => {
+                            let val = e.target.value
+                            if (val === '') {
+                              setTradeAmount('')
+                              return
+                            }
+                            if (!/^\d*\.?\d*$/.test(val)) return
+                            if (/^0[0-9]+/.test(val)) {
+                              val = val.replace(/^0+/, '')
+                            }
+                            setTradeAmount(val)
+                          }}
+                          className={`pt-input ${parseFloat(tradeAmount) > portfolio.balance ? 'border-red-500' : ''}`}
+                          placeholder={portfolio.balance <= 50 ? "e.g. 1.50" : "e.g. 1000"}
+                          style={{
+                            borderColor: parseFloat(tradeAmount) > portfolio.balance ? '#ef4444' : undefined,
+                            boxShadow: parseFloat(tradeAmount) > portfolio.balance ? '0 0 0 1px #ef4444' : undefined
+                          }}
+                        />
+                      </div>
+
+                      {/* Exceeds cash warning */}
+                      {parseFloat(tradeAmount) > portfolio.balance && (
+                        <div style={{ color: '#dc2626', fontSize: '0.72rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600 }}>
+                          <span>⚠️ Amount (${parseFloat(tradeAmount).toFixed(2)}) exceeds available cash.</span>
+                          <button
+                            type="button"
+                            onClick={() => setTradeAmount(String(Number(portfolio.balance.toFixed(2))))}
+                            style={{ textDecoration: 'underline', background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontWeight: 700 }}
+                          >
+                            Set to Max (${portfolio.balance.toFixed(2)})
+                          </button>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7rem', color: '#64748b', marginTop: '0.35rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <span>Available Cash: ${portfolio.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const deposit = window.prompt('Deposit virtual cash into your desk ($ USD):', '100')
+                              if (deposit && !isNaN(deposit) && Number(deposit) > 0) {
+                                addFunds(Number(deposit))
+                                refreshPortfolio()
+                                setStatusMessage({ type: 'SUCCESS', text: `💵 Added +$${Number(deposit).toFixed(2)} to your virtual desk!` })
+                              }
+                            }}
+                            style={{
+                              background: '#ecfdf5',
+                              color: '#047857',
+                              border: '1px solid #10b981',
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              fontSize: '0.675rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                            title="Add funds to practice trading"
+                          >
+                            + Add Cash
+                          </button>
+                        </div>
+                        <span>
+                          Estimated Shares: {currentPriceForSelected > 0 && parseFloat(tradeAmount) > 0 ? (
+                            parseFloat(tradeAmount) / currentPriceForSelected < 1
+                              ? (parseFloat(tradeAmount) / currentPriceForSelected).toFixed(4)
+                              : (parseFloat(tradeAmount) / currentPriceForSelected).toFixed(2)
+                          ) : '0'}
+                        </span>
                       </div>
                     </div>
 

@@ -154,12 +154,26 @@ export function closePosition(positionId, exitPrice) {
 }
 
 /**
+ * Adds funds / cash to the paper trading portfolio.
+ */
+export function addFunds(amountToAdd) {
+  const portfolio = getPortfolio();
+  const amt = Number(amountToAdd);
+  if (!amt || amt <= 0) return { success: false, message: 'Invalid deposit amount' };
+  portfolio.balance = Number((portfolio.balance + amt).toFixed(2));
+  portfolio.initialBalance = Number((portfolio.initialBalance + amt).toFixed(2));
+  savePortfolio(portfolio);
+  return { success: true, newBalance: portfolio.balance };
+}
+
+/**
  * Resets the paper portfolio back to a clean starting cash balance.
  */
 export function resetPortfolio(startingCash = DEFAULT_INITIAL_BALANCE) {
+  const cash = Number(startingCash) > 0 ? Number(startingCash) : DEFAULT_INITIAL_BALANCE;
   const fresh = {
-    balance: Number(startingCash) || DEFAULT_INITIAL_BALANCE,
-    initialBalance: Number(startingCash) || DEFAULT_INITIAL_BALANCE,
+    balance: Number(cash.toFixed(2)),
+    initialBalance: Number(cash.toFixed(2)),
     positions: [],
     history: []
   };
