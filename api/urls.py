@@ -15,7 +15,8 @@ from .views import (
     PortfolioRiskAnalyticsView,
     AIBrainFusionView,
     BudgetScalpFinderView,
-    Options6MoBacktestView
+    Options6MoBacktestView,
+    MarketPingView
 )
 
 router = DefaultRouter()
@@ -40,4 +41,5 @@ urlpatterns = [
     path('options/scalp-finder/', BudgetScalpFinderView.as_view(), name='budget-scalp-finder'),
     path('options/backtest-6mo/', Options6MoBacktestView.as_view(), name='options-backtest-6mo'),
     path('options/backtest/', Options6MoBacktestView.as_view(), name='options-backtest'),
+    path('market/ping/', MarketPingView.as_view(), name='market-ping'),
 ]

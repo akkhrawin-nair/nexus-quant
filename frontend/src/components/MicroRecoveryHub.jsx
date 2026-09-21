@@ -92,15 +92,44 @@ export default function MicroRecoveryHub({
     applyBufferPreset(activeBuffer, price)
   }
 
-  // Copy exact order parameters to clipboard for typing into real brokerage app
+  const [brokerFormat, setBrokerFormat] = useState('robinhood') // 'robinhood' | 'webull_ibkr' | 'alpaca'
+  const [hardStopCommitted, setHardStopCommitted] = useState(true)
+
+  // Copy exact formatted bracket order based on selected broker platform
   const handleCopyBrokerOrder = () => {
-    const text = `TICKER: ${calcSymbol}
-ACTION: BUY (Market or Limit @ $${calcEntry})
-ALLOCATION: $${sizingAnalysis.totalAllocation} USD
-SHARES: ${sizingAnalysis.shares} shares
-STOP LOSS: $${calcStopLoss} (-$${sizingAnalysis.actualRiskDollars})
-TAKE PROFIT: $${calcTakeProfit} (+$${sizingAnalysis.potentialProfitDollars})
-R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
+    let text = ''
+    if (brokerFormat === 'robinhood') {
+      text = `[ROBINHOOD FRACTIONAL BRACKET ORDER]
+TICKER: ${calcSymbol}
+ACTION: BUY IN DOLLARS
+DOLLAR AMOUNT: $${sizingAnalysis.totalAllocation} USD (~${sizingAnalysis.shares} shares)
+CONDITIONAL STOP-LOSS: $${calcStopLoss} (-$${sizingAnalysis.actualRiskDollars})
+CONDITIONAL TAKE-PROFIT: $${calcTakeProfit} (+$${sizingAnalysis.potentialProfitDollars})
+RULE: Set conditional stop-loss immediately upon fill. Do not adjust or cancel.`
+    } else if (brokerFormat === 'webull_ibkr') {
+      text = `[OCO BRACKET TICKET - WEBULL / IBKR / TOS]
+BUY ${sizingAnalysis.shares} ${calcSymbol} LMT @ $${calcEntry} GTC
+  | STOP LOSS: STP $${calcStopLoss} GTC (-$${sizingAnalysis.actualRiskDollars} USD)
+  | TAKE PROFIT: LMT $${calcTakeProfit} GTC (+${sizingAnalysis.potentialProfitDollars} USD)
+OCO BRACKET: TRIGGERED UPON FILL (SERVER-SIDE LOCKED)`
+    } else {
+      // Alpaca API JSON Bracket Payload
+      text = JSON.stringify({
+        symbol: calcSymbol,
+        qty: sizingAnalysis.shares,
+        side: "buy",
+        type: "limit",
+        limit_price: calcEntry,
+        time_in_force: "gtc",
+        order_class: "bracket",
+        take_profit: {
+          limit_price: calcTakeProfit
+        },
+        stop_loss: {
+          stop_price: calcStopLoss
+        }
+      }, null, 2)
+    }
     navigator.clipboard?.writeText(text)
     setCopiedOrder(true)
     setTimeout(() => setCopiedOrder(false), 2500)
@@ -648,8 +677,56 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                   })()}
                 </div>
 
+                {/* Universal Broker Bracket Ticket Selector (Zero-Emotion Execution) */}
+                <div style={{ marginTop: '0.6rem', padding: '0.55rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0f172a' }}>
+                      BROKER BRACKET FORMAT (OCO)
+                    </span>
+                    <span style={{ fontSize: '0.58rem', color: '#15803d', fontWeight: 700, background: '#dcfce7', padding: '1px 5px', borderRadius: '3px' }}>
+                      ⚡ ZERO-EMOTION BRACKET
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: '4px', marginBottom: '0.45rem' }}>
+                    {[
+                      { id: 'robinhood', label: 'Robinhood' },
+                      { id: 'webull_ibkr', label: 'Webull / IBKR' },
+                      { id: 'alpaca', label: 'Alpaca (JSON)' }
+                    ].map(b => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => setBrokerFormat(b.id)}
+                        style={{
+                          padding: '4px 6px',
+                          fontSize: '0.62rem',
+                          fontWeight: brokerFormat === b.id ? 800 : 600,
+                          borderRadius: '4px',
+                          border: brokerFormat === b.id ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                          background: brokerFormat === b.id ? '#eff6ff' : '#fff',
+                          color: brokerFormat === b.id ? '#1d4ed8' : '#64748b',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Hard-Stop Psychological Commitment Checkbox */}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.61rem', color: '#334155', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={hardStopCommitted}
+                      onChange={(e) => setHardStopCommitted(e.target.checked)}
+                      style={{ accentColor: '#10b981' }}
+                    />
+                    <span>I commit to setting this bracket stop at the broker level and not canceling it.</span>
+                  </label>
+                </div>
+
                 {/* Real Broker Order Copy & Live Tracking Buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
                   <button
                     type="button"
                     onClick={handleCopyBrokerOrder}
@@ -665,13 +742,13 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                       background: copiedOrder ? '#dcfce7' : '#f8fafc',
                       color: copiedOrder ? '#15803d' : '#0f172a',
                       fontWeight: 800,
-                      fontSize: '0.74rem',
+                      fontSize: '0.72rem',
                       cursor: 'pointer'
                     }}
-                    title="Copy exact ticker, limit price, stop-loss, and share count to paste into your real broker"
+                    title="Copy formatted bracket order ticket to paste directly into your brokerage app"
                   >
                     {copiedOrder ? <Check size={14} /> : <Copy size={14} />}
-                    <span>{copiedOrder ? 'Order Copied!' : '📋 Copy Broker Order'}</span>
+                    <span>{copiedOrder ? 'Bracket Copied!' : `📋 Copy ${brokerFormat === 'robinhood' ? 'Robinhood' : brokerFormat === 'webull_ibkr' ? 'IBKR' : 'Alpaca'} Ticket`}</span>
                   </button>
 
                   <button
