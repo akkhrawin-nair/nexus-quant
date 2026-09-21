@@ -12,7 +12,9 @@ import {
   Briefcase,
   ChevronRight,
   Flame,
-  ArrowRight
+  ArrowRight,
+  Copy,
+  Check
 } from 'lucide-react'
 
 export default function MicroRecoveryHub({
@@ -28,6 +30,8 @@ export default function MicroRecoveryHub({
     const bal = paperStats?.balance
     return (bal && bal > 0 && bal <= 50) ? bal : 6.00
   })
+
+  const [copiedOrder, setCopiedOrder] = useState(false)
 
   // Sizing Calculator State
   const [calcSymbol, setCalcSymbol] = useState('NVDA')
@@ -46,6 +50,20 @@ export default function MicroRecoveryHub({
     // Default 3% stop loss and 9% take profit (1:3 R/R)
     setCalcStopLoss(parseFloat((price * 0.97).toFixed(2)))
     setCalcTakeProfit(parseFloat((price * 1.09).toFixed(2)))
+  }
+
+  // Copy exact order parameters to clipboard for typing into real brokerage app
+  const handleCopyBrokerOrder = () => {
+    const text = `TICKER: ${calcSymbol}
+ACTION: BUY (Market or Limit @ $${calcEntry})
+ALLOCATION: $${sizingAnalysis.totalAllocation} USD
+SHARES: ${sizingAnalysis.shares} shares
+STOP LOSS: $${calcStopLoss} (-$${sizingAnalysis.actualRiskDollars})
+TAKE PROFIT: $${calcTakeProfit} (+$${sizingAnalysis.potentialProfitDollars})
+R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
+    navigator.clipboard?.writeText(text)
+    setCopiedOrder(true)
+    setTimeout(() => setCopiedOrder(false), 2500)
   }
 
   // Calculate Risk / Reward & Fractional Sizing
@@ -152,10 +170,12 @@ export default function MicroRecoveryHub({
               <div>
                 <div className="hub-title-row">
                   <h2 className="hub-title">$6.00 ➔ $30.00 RECOVERY TERMINAL</h2>
-                  <span className="hub-pill-chip">DISCIPLINED COMPOUNDING</span>
+                  <span className="hub-pill-chip" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #10b981' }}>
+                    REAL-TIME EXECUTION
+                  </span>
                 </div>
                 <p className="hub-subtitle">
-                  Anti-tilt risk protection & systematic fractional compounding engine to recover your capital safely.
+                  Live risk-controlled sizing, broker order copy, and real-time capital tracker to grow your $6.00 back to $30.00.
                 </p>
               </div>
             </div>
@@ -353,18 +373,45 @@ export default function MicroRecoveryHub({
                   </div>
                 </div>
 
-                {/* Direct Action: Launch Paper Trade */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose()
-                    onOpenPaperTrade?.(calcSymbol)
-                  }}
-                  className="calc-execute-btn"
-                >
-                  <Zap size={14} />
-                  <span>Test in $6 Simulator Desk</span>
-                </button>
+                {/* Real Broker Order Copy & Live Tracking Buttons */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleCopyBrokerOrder}
+                    className="calc-copy-btn font-mono"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      padding: '0.55rem',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: copiedOrder ? '#dcfce7' : '#f8fafc',
+                      color: copiedOrder ? '#15803d' : '#0f172a',
+                      fontWeight: 800,
+                      fontSize: '0.74rem',
+                      cursor: 'pointer'
+                    }}
+                    title="Copy exact ticker, limit price, stop-loss, and share count to paste into your real broker"
+                  >
+                    {copiedOrder ? <Check size={14} /> : <Copy size={14} />}
+                    <span>{copiedOrder ? 'Order Copied!' : '📋 Copy Broker Order'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose()
+                      onOpenPaperTrade?.(calcSymbol)
+                    }}
+                    className="calc-execute-btn font-mono"
+                    style={{ margin: 0 }}
+                  >
+                    <Zap size={14} />
+                    <span>Track Live</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -408,7 +455,7 @@ export default function MicroRecoveryHub({
                             }}
                             className="sig-trade-btn"
                           >
-                            Paper Trade
+                            Track Live
                           </button>
                         </div>
                       </div>

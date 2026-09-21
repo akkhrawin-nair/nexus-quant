@@ -448,7 +448,7 @@ export default function AIBrainFusionModal({
                       }}
                     >
                       <Briefcase size={14} />
-                      <span>Execute in Paper Trading Desk</span>
+                      <span>Track in Live Execution Desk</span>
                     </button>
 
                     <button

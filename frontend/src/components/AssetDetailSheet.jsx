@@ -527,11 +527,11 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
                 <button
                   className="sync-now-btn"
                   onClick={() => onOpenPaperTrading?.(symbol)}
-                  title="Simulate paper trade on this asset in Paper Desk"
+                  title="Track real-time position on this asset in Live Desk"
                   style={{ padding: '0.3rem 0.65rem', fontSize: '0.725rem', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', fontWeight: 700 }}
                 >
                   <Briefcase size={13} />
-                  <span>Paper Trade</span>
+                  <span>Track Live</span>
                 </button>
 
                 <button className="sheet-close-btn" onClick={onClose} title="Close (ESC)">

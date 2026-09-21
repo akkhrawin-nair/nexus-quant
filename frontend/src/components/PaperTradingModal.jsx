@@ -201,7 +201,7 @@ export default function PaperTradingModal({
 
   // Reset portfolio to clean $6.00 starting capital
   const handleResetPortfolio = () => {
-    if (window.confirm('Reset Paper Portfolio back to clean $6.00 capital? All open positions and history will be cleared.')) {
+    if (window.confirm('Reset Live Tracker back to clean $6.00 capital? All open positions and history will be cleared.')) {
       resetPortfolio(6.00)
       setStatusMessage({ type: 'INFO', text: '🔄 Portfolio reset back to $6.00 cash' })
       setTradeAmount(1.50)
@@ -240,20 +240,20 @@ export default function PaperTradingModal({
                 </div>
                 <div className="pt-title-wrap">
                   <div className="pt-title-row">
-                    <h2 className="pt-title">Paper Trading & Position Tracker</h2>
+                    <h2 className="pt-title">Live Position Tracker & Trade Journal</h2>
                     <span 
                       className="pt-sim-tag"
                       style={{
-                        background: '#fef3c7',
-                        color: '#b45309',
-                        border: '1px solid #f59e0b'
+                        background: '#ecfdf5',
+                        color: '#047857',
+                        border: '1px solid #10b981'
                       }}
                     >
-                      🎯 $6.00 ➔ $30 Challenge
+                      🎯 REAL-TIME $6 ➔ $30 DESK
                     </span>
                   </div>
                   <p className="pt-sub">
-                    Execute high-conviction breakout setups with simulated micro-capital.
+                    Track your live real-time positions, unrealized P&L, stop-loss triggers, and compounding metrics.
                   </p>
                 </div>
               </div>
@@ -270,7 +270,7 @@ export default function PaperTradingModal({
                 <button
                   onClick={onClose}
                   className="pt-close-btn"
-                  title="Close Paper Desk"
+                  title="Close Live Desk"
                 >
                   <X size={16} />
                 </button>
@@ -348,7 +348,7 @@ export default function PaperTradingModal({
                 className={`pt-tab ${activeTab === 'NEW_TRADE' ? 'active' : ''}`}
               >
                 <Plus size={13} />
-                <span>Simulate New Trade</span>
+                <span>Log Live Trade</span>
               </button>
 
               <button
@@ -382,15 +382,15 @@ export default function PaperTradingModal({
                   {portfolio.positions.length === 0 ? (
                     <div className="empty-state">
                       <Briefcase className="empty-state-icon" />
-                      <h3 className="empty-state-title">No Open Paper Positions</h3>
+                      <h3 className="empty-state-title">No Active Live Positions</h3>
                       <p className="empty-state-desc">
-                        Follow any stock, fund, or crypto setup from the Breakout Engine or Daily Playbook to test trades risk-free.
+                        Log your active trades or copy trade orders to your broker to track real-time P&L against live market ticks.
                       </p>
                       <button
                         onClick={() => setActiveTab('NEW_TRADE')}
                         className="empty-state-btn"
                       >
-                        + Simulate First Trade
+                        + Log First Live Position
                       </button>
                     </div>
                   ) : (
@@ -477,7 +477,7 @@ export default function PaperTradingModal({
                       <Clock className="empty-state-icon" />
                       <h3 className="empty-state-title">No Closed Trades Yet</h3>
                       <p className="empty-state-desc">
-                        When you close an open paper trade, its realized P&L, timestamps, and return track record will show here.
+                        When you close an active position, its realized P&L, timestamps, and return track record will show here.
                       </p>
                     </div>
                   ) : (
@@ -751,7 +751,7 @@ export default function PaperTradingModal({
                     className="pt-submit-btn"
                   >
                     <Zap size={16} />
-                    <span>Execute Simulated Buy (${tradeAmount.toLocaleString()})</span>
+                    <span>Log & Track Live Position (${tradeAmount.toLocaleString()})</span>
                   </button>
                 </form>
               )}
@@ -759,7 +759,7 @@ export default function PaperTradingModal({
 
             {/* Modal Footer */}
             <div className="pt-footer">
-              <span>Paper portfolio is saved in local browser storage sandbox ($10,000 virtual cash).</span>
+              <span>Real-time trade ledger & position tracking against live market ticks.</span>
               <button onClick={onClose} className="pt-done-btn">
                 Close Desk
               </button>

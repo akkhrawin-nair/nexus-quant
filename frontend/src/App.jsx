@@ -1202,7 +1202,7 @@ function App() {
         lang={lang}
       />
 
-      {/* 1-Click Paper Trading & Live Position Tracker Modal */}
+      {/* Real-Time Live Position Tracker & Trade Journal Modal */}
       <PaperTradingModal
         isOpen={isPaperTradingOpen}
         onClose={() => setIsPaperTradingOpen(false)}
@@ -1361,15 +1361,15 @@ function App() {
             <span>$6 ➔ $30 RECOVERY</span>
           </button>
 
-          {/* Paper Portfolio Quick Status Badge */}
+          {/* Real-Time Live Portfolio Quick Status Badge */}
           <button
             className="paper-portfolio-nav-btn font-mono"
             onClick={() => setIsPaperTradingOpen(true)}
-            title="Open 1-Click Paper Trading Portfolio & Live Position Tracker"
+            title="Open Live Position Tracker & Real-Time Trade Desk"
           >
             <Briefcase size={13} className="paper-nav-icon" />
-            <span className="paper-nav-label">PAPER:</span>
-            <span className="paper-nav-val">${paperStats.totalEquity.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            <span className="paper-nav-label">LIVE DESK:</span>
+            <span className="paper-nav-val">${paperStats.totalEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             <span className={`paper-nav-pnl ${paperStats.allTimeRoiPercent >= 0 ? 'pos' : 'neg'}`}>
               {paperStats.allTimeRoiPercent >= 0 ? '+' : ''}{paperStats.allTimeRoiPercent.toFixed(1)}%
             </span>
@@ -1519,10 +1519,10 @@ function App() {
                         <Briefcase size={15} />
                       </div>
                       <div className="item-text">
-                        <span className="item-title">Paper Portfolio & Tracker</span>
-                        <span className="item-desc">Follow top setups with live P&L and win rate</span>
+                        <span className="item-title">Live Position Tracker & Journal</span>
+                        <span className="item-desc">Track real-time positions with live P&L and win rate</span>
                       </div>
-                      <span className="item-badge" style={{ background: '#059669', color: '#fff' }}>SIM</span>
+                      <span className="item-badge" style={{ background: '#059669', color: '#fff' }}>LIVE</span>
                     </button>
 
                     <button className="popover-item" onClick={() => { setIsMentorOpen(true); setIsToolsDropdownOpen(false); }} style={{ background: '#fdf2f8', borderColor: '#fbcfe8' }}>

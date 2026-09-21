@@ -246,10 +246,10 @@ export default function DailyTradePlaybook({
             <button
               className="follow-trade-btn"
               onClick={() => onOpenPaperTrading?.(symbol)}
-              title="Follow this pick with $10,000 Paper Portfolio"
+              title="Track this setup in Live Position Desk"
             >
               <Briefcase size={14} />
-              <span>{lang === 'th' ? `จำลองเทรด ${symbol} 💼` : `FOLLOW TRADE ${symbol} 💼`}</span>
+              <span>{lang === 'th' ? `ติดตามเทรด ${symbol} 💼` : `TRACK LIVE ${symbol} 💼`}</span>
             </button>
 
             <button

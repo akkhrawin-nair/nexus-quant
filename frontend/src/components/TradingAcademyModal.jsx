@@ -68,9 +68,9 @@ export default function TradingAcademyModal({
       content: 'Always set a Stop Loss order BEFORE entering a trade. If you buy at $100 and set a Stop Loss at $96, the system automatically sells if price drops, capping your max loss at 4%.'
     },
     {
-      title: 'Step 4: Practice First with Virtual Money',
+      title: 'Step 4: Real-Time Sizing & Trade Execution Discipline',
       icon: GraduationCap,
-      content: 'Use our Virtual Paper Trading Desk to practice buying & selling with $100,000 in demo cash until you win at least 6 out of 10 trades before risking real capital.'
+      content: 'Always calculate your exact position size using the Anti-Ruin Engine before entering. Never risk more than 3-5% of your total balance on a single trade, and log every real execution immediately.'
     }
   ]
 
@@ -236,8 +236,8 @@ export default function TradingAcademyModal({
                       <div className="rule-card">
                         <div className="rule-num">4</div>
                         <div className="rule-content">
-                          <span className="rule-title">Practice on Paper Trading First</span>
-                          <p className="rule-desc">Use our Virtual Paper Trading Desk to place demo trades with $100,000 in virtual cash. Only switch to real money once you have at least 4 consecutive profitable weeks.</p>
+                          <span className="rule-title">Strict Position Sizing & Real Execution Rules</span>
+                          <p className="rule-desc">Use the Anti-Ruin Sizing Engine to calculate the exact fractional shares for your broker. Never enter any trade without a predefined Stop Loss and Take Profit target.</p>
                         </div>
                       </div>
 

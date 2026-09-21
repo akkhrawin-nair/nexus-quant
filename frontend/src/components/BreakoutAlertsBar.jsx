@@ -236,10 +236,10 @@ export default function BreakoutAlertsBar({
                     <button
                       className="alert-act-btn trade"
                       onClick={() => onOpenPaperTrade?.(alert.asset)}
-                      title="1-Click Execute into Paper Portfolio"
+                      title="1-Click Track in Live Desk"
                     >
                       <Zap size={11} />
-                      <span>Trade</span>
+                      <span>Track</span>
                     </button>
                   </div>
                 </div>
