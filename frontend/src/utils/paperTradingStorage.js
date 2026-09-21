@@ -1,7 +1,7 @@
 // frontend/src/utils/paperTradingStorage.js
 
 const STORAGE_KEY = 'nexus_quant_paper_portfolio';
-const DEFAULT_INITIAL_BALANCE = 10000.0;
+const DEFAULT_INITIAL_BALANCE = 6.00;
 
 export const DEFAULT_PORTFOLIO = {
   balance: DEFAULT_INITIAL_BALANCE,
@@ -21,6 +21,17 @@ export function getPortfolio() {
       return { ...DEFAULT_PORTFOLIO };
     }
     const data = JSON.parse(raw);
+    // If user has the legacy fake $10,000 balance, migrate to real $6.00 capital
+    if (data.initialBalance === 10000 || data.balance === 10000) {
+      const migrated = {
+        balance: DEFAULT_INITIAL_BALANCE,
+        initialBalance: DEFAULT_INITIAL_BALANCE,
+        positions: [],
+        history: []
+      };
+      savePortfolio(migrated);
+      return migrated;
+    }
     return {
       balance: typeof data.balance === 'number' ? data.balance : DEFAULT_INITIAL_BALANCE,
       initialBalance: typeof data.initialBalance === 'number' ? data.initialBalance : DEFAULT_INITIAL_BALANCE,
@@ -74,11 +85,11 @@ export function openPosition({
     };
   }
 
-  // Calculate quantity (4 decimals for Crypto, 2 for Stocks/ETFs)
-  const isCrypto = assetType === 'Crypto' || (symbol && symbol.includes('-USD'));
+  // Calculate fractional quantity (supports micro accounts with up to 5 decimals)
   const rawQty = totalAmount / price;
-  const quantity = isCrypto ? Number(rawQty.toFixed(4)) : Number(rawQty.toFixed(2));
-  const actualCost = Number((quantity * price).toFixed(2));
+  // Allow high fractional precision (5 decimals) so small accounts ($1.50 - $6.00) can buy fractional shares accurately
+  const quantity = Number(rawQty.toFixed(5));
+  const actualCost = Number(totalAmount.toFixed(2));
 
   const newPosition = {
     id: `pos-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,

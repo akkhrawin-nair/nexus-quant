@@ -45,7 +45,10 @@ export default function PaperTradingModal({
 
   // New Trade Form State
   const [tradeSymbol, setTradeSymbol] = useState(initialTicker || 'NVDA')
-  const [tradeAmount, setTradeAmount] = useState(1000)
+  const [tradeAmount, setTradeAmount] = useState(() => {
+    const p = getPortfolio()
+    return p.balance <= 50 ? Number((p.balance * 0.25).toFixed(2)) || 1.50 : 1000
+  })
   const [customStopLoss, setCustomStopLoss] = useState('')
   const [customTakeProfit, setCustomTakeProfit] = useState('')
 
@@ -196,11 +199,12 @@ export default function PaperTradingModal({
     }
   }
 
-  // Reset portfolio
+  // Reset portfolio to clean $6.00 starting capital
   const handleResetPortfolio = () => {
-    if (window.confirm('Are you sure you want to reset your Paper Portfolio back to $10,000 cash? All positions and history will be cleared.')) {
-      resetPortfolio(10000)
-      setStatusMessage({ type: 'INFO', text: '🔄 Portfolio reset back to $10,000.00 cash' })
+    if (window.confirm('Reset Paper Portfolio back to clean $6.00 capital? All open positions and history will be cleared.')) {
+      resetPortfolio(6.00)
+      setStatusMessage({ type: 'INFO', text: '🔄 Portfolio reset back to $6.00 cash' })
+      setTradeAmount(1.50)
       refreshPortfolio()
     }
   }
@@ -237,10 +241,19 @@ export default function PaperTradingModal({
                 <div className="pt-title-wrap">
                   <div className="pt-title-row">
                     <h2 className="pt-title">Paper Trading & Position Tracker</h2>
-                    <span className="pt-sim-tag">Live $10K Sim</span>
+                    <span 
+                      className="pt-sim-tag"
+                      style={{
+                        background: '#fef3c7',
+                        color: '#b45309',
+                        border: '1px solid #f59e0b'
+                      }}
+                    >
+                      🎯 $6.00 ➔ $30 Challenge
+                    </span>
                   </div>
                   <p className="pt-sub">
-                    Execute high-conviction breakout setups with simulated virtual capital.
+                    Execute high-conviction breakout setups with simulated micro-capital.
                   </p>
                 </div>
               </div>
@@ -249,10 +262,10 @@ export default function PaperTradingModal({
                 <button
                   onClick={handleResetPortfolio}
                   className="pt-reset-btn"
-                  title="Reset portfolio to $10,000"
+                  title="Reset portfolio to $6.00 cash"
                 >
                   <RefreshCw size={12} />
-                  <span>Reset $10K</span>
+                  <span>Reset ($6.00)</span>
                 </button>
                 <button
                   onClick={onClose}
@@ -402,7 +415,7 @@ export default function PaperTradingModal({
                               <span className="pt-pos-symbol">{pos.symbol}</span>
                               <span className="pt-pos-asset-type">{pos.assetType}</span>
                               <span className="pt-pos-qty-info">
-                                {pos.quantity} shares @ ${pos.entryPrice.toFixed(2)}
+                                {pos.quantity < 1 ? Number(pos.quantity).toFixed(4) : pos.quantity} shares @ ${pos.entryPrice.toFixed(2)}
                               </span>
                             </div>
                             <button
@@ -570,7 +583,7 @@ export default function PaperTradingModal({
                                   ${trade.entryPrice.toFixed(2)} → ${trade.exitPrice.toFixed(2)}
                                 </td>
                                 <td style={{ color: '#64748b' }}>
-                                  {trade.quantity}
+                                  {trade.quantity < 1 ? Number(trade.quantity).toFixed(4) : trade.quantity}
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
                                   <span className={`pt-pnl-pill ${isWin ? 'profit' : 'loss'}`}>
@@ -637,36 +650,58 @@ export default function PaperTradingModal({
                     <div className="form-group">
                       <label className="form-label">Capital Allocation ($ USD)</label>
                       <div className="pt-quick-amounts">
-                        {[500, 1000, 2500, 5000].map(amt => (
-                          <button
-                            key={amt}
-                            type="button"
-                            onClick={() => setTradeAmount(amt)}
-                            className={`pt-quick-btn ${tradeAmount === amt ? 'active' : ''}`}
-                          >
-                            ${amt.toLocaleString()}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => setTradeAmount(Math.floor(portfolio.balance))}
-                          className={`pt-quick-btn ${tradeAmount === Math.floor(portfolio.balance) ? 'active' : ''}`}
-                        >
-                          Max (${Math.floor(portfolio.balance).toLocaleString()})
-                        </button>
+                        {portfolio.balance <= 50 ? (
+                          [
+                            { label: '25%', val: Number((portfolio.balance * 0.25).toFixed(2)) },
+                            { label: '50%', val: Number((portfolio.balance * 0.50).toFixed(2)) },
+                            { label: '75%', val: Number((portfolio.balance * 0.75).toFixed(2)) },
+                            { label: 'Max', val: Number(portfolio.balance.toFixed(2)) }
+                          ].map(item => (
+                            <button
+                              key={item.label}
+                              type="button"
+                              onClick={() => setTradeAmount(item.val)}
+                              className={`pt-quick-btn ${tradeAmount === item.val ? 'active' : ''}`}
+                            >
+                              {item.label} (${item.val})
+                            </button>
+                          ))
+                        ) : (
+                          <>
+                            {[500, 1000, 2500, 5000].map(amt => (
+                              <button
+                                key={amt}
+                                type="button"
+                                onClick={() => setTradeAmount(amt)}
+                                className={`pt-quick-btn ${tradeAmount === amt ? 'active' : ''}`}
+                              >
+                                ${amt.toLocaleString()}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setTradeAmount(Math.floor(portfolio.balance))}
+                              className={`pt-quick-btn ${tradeAmount === Math.floor(portfolio.balance) ? 'active' : ''}`}
+                            >
+                              Max (${Math.floor(portfolio.balance).toLocaleString()})
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       <input
                         type="number"
-                        min="10"
+                        step="any"
+                        min="0.05"
                         max={portfolio.balance}
                         value={tradeAmount}
                         onChange={(e) => setTradeAmount(Number(e.target.value))}
                         className="pt-input"
+                        placeholder={portfolio.balance <= 50 ? "e.g. 1.50" : "e.g. 1000"}
                       />
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
                         <span>Available Cash: ${portfolio.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                        <span>Estimated Shares: {(tradeAmount / currentPriceForSelected).toFixed(2)}</span>
+                        <span>Estimated Shares: {currentPriceForSelected > 0 ? (tradeAmount / currentPriceForSelected < 1 ? (tradeAmount / currentPriceForSelected).toFixed(4) : (tradeAmount / currentPriceForSelected).toFixed(2)) : '0'}</span>
                       </div>
                     </div>
 

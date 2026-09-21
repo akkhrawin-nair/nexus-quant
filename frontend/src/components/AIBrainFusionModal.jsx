@@ -29,7 +29,6 @@ export default function AIBrainFusionModal({
   initialSymbol = 'QQQ',
   API_BASE_URL = 'http://127.0.0.1:8000',
   onOpenPaperTrade,
-  onOpenOptionsPlay,
   onOpenFullChart
 }) {
   const [symbol, setSymbol] = useState(initialSymbol)
@@ -449,18 +448,7 @@ export default function AIBrainFusionModal({
                       }}
                     >
                       <Briefcase size={14} />
-                      <span>Execute in Paper Trading ($10K Sim)</span>
-                    </button>
-
-                    <button
-                      className="action-btn options-btn font-mono"
-                      onClick={() => {
-                        onClose?.()
-                        onOpenOptionsPlay?.(symbol)
-                      }}
-                    >
-                      <Zap size={14} />
-                      <span>{brainData.trade_setup?.recommended_option || 'View 1-Day Options Payoff'}</span>
+                      <span>Execute in Paper Trading Desk</span>
                     </button>
 
                     <button

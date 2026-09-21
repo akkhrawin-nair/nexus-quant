@@ -52,13 +52,9 @@ import {
   Globe,
   Award,
   Briefcase,
+  Target,
   Video
 } from 'lucide-react'
-
-
-
-
-
 
 import './App.css'
 import { translations } from './i18n/translations'
@@ -66,28 +62,24 @@ import TradingChart from './components/TradingChart'
 import CommandMenu from './components/CommandMenu'
 import AssetDetailSheet from './components/AssetDetailSheet'
 import MarketHeatmap from './components/MarketHeatmap'
-import OptionsPayoffChart from './components/OptionsPayoffChart'
 import AddTickerModal from './components/AddTickerModal'
 import AICopilotDrawer from './components/AICopilotDrawer'
 import BacktestModal from './components/BacktestModal'
 import CorrelationMatrixModal from './components/CorrelationMatrixModal'
 import AlertRulesModal from './components/AlertRulesModal'
 import FullChartModal from './components/FullChartModal'
-import OptionsPayoffModal from './components/OptionsPayoffModal'
 import PortfolioSimulatorModal from './components/PortfolioSimulatorModal'
 import MarketSentimentBar from './components/MarketSentimentBar'
 import NewsSentimentModal from './components/NewsSentimentModal'
 import PortfolioOptimizerModal from './components/PortfolioOptimizerModal'
 import TradingAcademyModal from './components/TradingAcademyModal'
 import DailyTradePlaybook from './components/DailyTradePlaybook'
-import DailyOptionPickGuide from './components/DailyOptionPickGuide'
 import SignalCard from './components/SignalCard'
 import { getRiskRatingMeta } from './utils/riskUtils'
 import AIMentorModal from './components/AIMentorModal'
 import PaperTradingModal from './components/PaperTradingModal'
 import AIBrainFusionModal from './components/AIBrainFusionModal'
-import QuickScalpDeskModal from './components/QuickScalpDeskModal'
-import ViralStudioModal from './components/ViralShortsStudio/ViralStudioModal'
+import MicroRecoveryHub from './components/MicroRecoveryHub'
 import { getPortfolio, calculatePortfolioStats } from './utils/paperTradingStorage'
 import BreakoutAlertsBar from './components/BreakoutAlertsBar'
 
@@ -172,18 +164,14 @@ function App() {
   // Full-Screen Interactive Chart Modal State
   const [fullChartAsset, setFullChartAsset] = useState(null)
 
-  // 0DTE Options Payoff & Greeks Visualizer Modal State
-  const [isOptionsPayoffOpen, setIsOptionsPayoffOpen] = useState(false)
-  const [optionsPayoffSymbol, setOptionsPayoffSymbol] = useState('QQQ')
-  const [optionsPayoffStrategy, setOptionsPayoffStrategy] = useState('BULL_SPREAD')
-  const [optionsPayoffTarget, setOptionsPayoffTarget] = useState(null)
-  const [optionsPayoffDte, setOptionsPayoffDte] = useState(1)
-
   // Monte Carlo Portfolio Risk Simulator Modal State
   const [isMonteCarloOpen, setIsMonteCarloOpen] = useState(false)
 
   // Live Financial News & Sentiment Modal State
   const [isSentimentOpen, setIsSentimentOpen] = useState(false)
+
+  // $6 ➔ $30 Account Recovery & Compounding Hub Modal State
+  const [isRecoveryHubOpen, setIsRecoveryHubOpen] = useState(false)
 
   // Quant Tools Popover Dropdown Menu State
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false)
@@ -229,13 +217,7 @@ function App() {
   const [isBrainOpen, setIsBrainOpen] = useState(false)
   const [brainSymbol, setBrainSymbol] = useState('QQQ')
 
-  // 0DTE $30 Quick Scalper Desk & Automated Exit Signals State
-  const [isScalpOpen, setIsScalpOpen] = useState(false)
-  const [scalpSymbol, setScalpSymbol] = useState('QQQ')
-
   // VIRAL-AGENT Content-to-Cash Short-Form Video Factory State
-  const [isViralStudioOpen, setIsViralStudioOpen] = useState(false)
-  const [appView, setAppView] = useState('quant') // 'quant' | 'viral_studio'
 
   // Bilingual English/Thai (EN/TH) i18n State
   const [lang, setLang] = useState(() => localStorage.getItem('kappa_lang') || 'en')
@@ -246,8 +228,8 @@ function App() {
   }
   const t = translations[lang] || translations.en
 
-  // Intelligence Suite Active View ('option_pick' | 'golden' | 'playbook') & Collapse State
-  const [intelView, setIntelView] = useState('option_pick')
+  // Intelligence Suite Active View ('golden' | 'playbook') & Collapse State
+  const [intelView, setIntelView] = useState('golden')
   const [isIntelCollapsed, setIsIntelCollapsed] = useState(false)
 
   // Real-time Header Market Hours Countdown State
@@ -556,10 +538,6 @@ function App() {
         setBrainSymbol('QQQ')
         setIsBrainOpen(true)
         break
-      case 'OPEN_QUICK_SCALP':
-        setScalpSymbol('QQQ')
-        setIsScalpOpen(true)
-        break
       case 'SHOW_VOLATILITY':
         setActiveNav('Volatility')
         break
@@ -848,7 +826,7 @@ function App() {
     return () => clearInterval(interval)
   }, [isLivePolling, signalType])
 
-  const categories = ['ALL', 'Favorites', 'Stock', 'ETF', 'Crypto', 'Commodity']
+  const categories = ['ALL', 'A+ Setups', 'Favorites', 'Stock', 'ETF', 'Crypto', 'Commodity']
 
   const displayedSignals = useMemo(() => {
     return signals
@@ -858,6 +836,12 @@ function App() {
         const queryStr = searchQuery.toLowerCase().trim()
 
         const matchesSearch = !queryStr || symbolStr.toLowerCase().includes(queryStr) || assetStr.includes(queryStr)
+
+        if (activeFilter === 'A+ Setups') {
+          const isGolden = s.golden_opportunity?.is_golden_opportunity || s.is_golden
+          const score = s.golden_opportunity?.conviction_score || (s.confidence_score ? s.confidence_score * 100 : 0)
+          return matchesSearch && (isGolden || score >= 75)
+        }
 
         if (activeFilter === 'Favorites') {
           return matchesSearch && favorites.includes(symbolStr)
@@ -1107,15 +1091,6 @@ function App() {
   const navTabs = ['Dashboard', 'Signals', 'Volatility']
 
   // Full-Screen Dedicated VIRAL-AGENT Content-to-Cash Video Factory Mode
-  if (appView === 'viral_studio') {
-    return (
-      <ViralStudioModal
-        isFullScreen={true}
-        API_BASE_URL={API_BASE_URL}
-        onSwitchToQuant={() => setAppView('quant')}
-      />
-    )
-  }
 
   return (
     <motion.div
@@ -1143,11 +1118,6 @@ function App() {
         }}
         onOpenAlerts={() => setIsAlertsOpen(true)}
         onOpenFullChart={(ast) => setFullChartAsset(ast)}
-        onOpenOptions={(sym) => {
-          setOptionsPayoffSymbol(sym || activeAsset?.symbol || 'QQQ')
-          setOptionsPayoffDte(1)
-          setIsOptionsPayoffOpen(true)
-        }}
         onOpenReport={(sym) => {
           setReportSymbol(sym)
           setIsReportOpen(true)
@@ -1202,21 +1172,6 @@ function App() {
         API_BASE_URL={API_BASE_URL}
       />
 
-      {/* 0DTE Options Payoff & Black-Scholes Greeks Engine Modal */}
-      <OptionsPayoffModal
-        isOpen={isOptionsPayoffOpen}
-        onClose={() => setIsOptionsPayoffOpen(false)}
-        signals={signals}
-        initialSymbol={optionsPayoffSymbol}
-        initialStrategy={optionsPayoffStrategy}
-        initialTargetPrice={optionsPayoffTarget}
-        initialDaysToExpiry={optionsPayoffDte}
-        onOpenQuickScalp={(sym) => {
-          setScalpSymbol(sym || optionsPayoffSymbol || 'QQQ')
-          setIsScalpOpen(true)
-        }}
-      />
-
       {/* Monte Carlo Portfolio Risk & VaR Simulator Modal */}
       <PortfolioSimulatorModal
         isOpen={isMonteCarloOpen}
@@ -1255,6 +1210,22 @@ function App() {
         initialTicker={paperTradeSymbol}
       />
 
+      {/* $6 ➔ $30 Micro-Account Recovery & Compounding Hub Modal */}
+      <MicroRecoveryHub
+        isOpen={isRecoveryHubOpen}
+        onClose={() => setIsRecoveryHubOpen(false)}
+        signals={signals}
+        paperStats={paperStats}
+        onOpenPaperTrade={(sym) => {
+          setPaperTradeSymbol(sym)
+          setIsPaperTradingOpen(true)
+        }}
+        onOpenChart={(sym) => {
+          const ast = signals.find(s => s.symbol === sym)
+          if (ast) setFullChartAsset(ast)
+        }}
+      />
+
       {/* AI Confluence Brain (Fastest News + Quantitative Technicals Dual-Engine) Modal */}
       <AIBrainFusionModal
         isOpen={isBrainOpen}
@@ -1265,35 +1236,12 @@ function App() {
           setPaperTradeSymbol(sym)
           setIsPaperTradingOpen(true)
         }}
-        onOpenOptionsPlay={(sym) => {
-          setOptionsPayoffSymbol(sym || 'QQQ')
-          setOptionsPayoffDte(1)
-          setOptionsPayoffStrategy('BULL_SPREAD')
-          setIsOptionsPayoffOpen(true)
-        }}
         onOpenFullChart={(asset) => {
           setFullChartAsset(asset)
         }}
       />
 
-      {/* 0DTE $30 Quick Scalper Desk & Automated Exit Signals Modal */}
-      <QuickScalpDeskModal
-        isOpen={isScalpOpen}
-        onClose={() => setIsScalpOpen(false)}
-        initialSymbol={scalpSymbol}
-        API_BASE_URL={API_BASE_URL}
-        onOpenBacktest={() => {
-          setIsScalpOpen(false)
-          setIsBacktestOpen(true)
-        }}
-      />
-
       {/* VIRAL-AGENT Content-to-Cash Video Factory Studio Modal */}
-      <ViralStudioModal
-        isOpen={isViralStudioOpen}
-        onClose={() => setIsViralStudioOpen(false)}
-        API_BASE_URL={API_BASE_URL}
-      />
 
 
 
@@ -1403,6 +1351,16 @@ function App() {
         </nav>
 
         <div className="header-right-group">
+          {/* $6 ➔ $30 Recovery Hub Trigger */}
+          <button
+            className="recovery-hub-nav-btn font-mono"
+            onClick={() => setIsRecoveryHubOpen(true)}
+            title="Open $6.00 ➔ $30.00 Recovery & Compounding Hub"
+          >
+            <Target size={13} style={{ color: '#d97706' }} />
+            <span>$6 ➔ $30 RECOVERY</span>
+          </button>
+
           {/* Paper Portfolio Quick Status Badge */}
           <button
             className="paper-portfolio-nav-btn font-mono"
@@ -1499,44 +1457,13 @@ function App() {
           {/* Header Live Market Open Countdown Chip */}
           <div
             className={`market-countdown-chip ${marketClock.isOpen ? 'live' : 'pre'} font-mono`}
-            style={{ cursor: 'pointer', padding: '0.25rem 0.6rem', fontSize: '0.68rem' }}
-            onClick={() => { setScalpSymbol('QQQ'); setIsScalpOpen(true); }}
-            title="US Market Live Countdown • Click to Open Quick Scalp Desk"
+            style={{ padding: '0.25rem 0.6rem', fontSize: '0.68rem' }}
+            title="US Market Live Countdown"
           >
             <span className="pulse-dot-mini" />
             <span className="market-session-lbl">{marketClock.badgeText}:</span>
             <span className="market-countdown-val">{marketClock.countdown}</span>
           </div>
-
-          {/* 0DTE $31 Quick Scalper Desk & Exit Signals Button */}
-          <button
-            className="quick-scalp-trigger-btn font-mono"
-            onClick={() => {
-              setScalpSymbol('QQQ')
-              setIsScalpOpen(true)
-            }}
-            title="Open 0DTE $31 Quick Scalp Terminal & Automated Exit Signals"
-          >
-            <Zap size={13} style={{ color: '#000000' }} />
-            <span>0DTE Scalp Desk ($31)</span>
-            <span className="scalp-pulse-chip">SELL SIGNALS</span>
-          </button>
-
-          {/* VIRAL-AGENT Video Factory Launcher Button (Full-Screen Studio) */}
-          <button
-            className="quick-scalp-trigger-btn font-mono"
-            onClick={() => setAppView('viral_studio')}
-            style={{
-              background: 'linear-gradient(135deg, #0284c7, #6366f1)',
-              borderColor: '#818cf8',
-              color: '#ffffff'
-            }}
-            title="Switch to VIRAL-AGENT Full-Screen Faceless Short-Form Video & Content-to-Cash Factory"
-          >
-            <Video size={13} style={{ color: '#ffffff' }} />
-            <span style={{ color: '#ffffff', fontWeight: 800 }}>Viral Video Factory</span>
-            <span className="scalp-pulse-chip" style={{ background: '#eab308', color: '#000' }}>$$$ CASH ENGINE</span>
-          </button>
 
           {/* Institutional Quant Tools Dropdown Popover */}
           <div className="quant-tools-dropdown-container" ref={toolsDropdownRef}>
@@ -1565,16 +1492,17 @@ function App() {
                   </div>
 
                   <div className="popover-grid">
-                    <button className="popover-item" onClick={() => { setScalpSymbol('QQQ'); setIsScalpOpen(true); setIsToolsDropdownOpen(false); }} style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
+                    <button className="popover-item" onClick={() => { setIsRecoveryHubOpen(true); setIsToolsDropdownOpen(false); }} style={{ background: '#fffbeb', borderColor: '#fcd34d' }}>
                       <div className="item-icon-wrapper" style={{ background: '#fef3c7', color: '#d97706' }}>
-                        <Zap size={15} />
+                        <Target size={15} />
                       </div>
                       <div className="item-text">
-                        <span className="item-title">$30 Quick Scalp & Exit Signals</span>
-                        <span className="item-desc">Live minute scalps with +25% profit target & stop-loss alerts</span>
+                        <span className="item-title">$6 ➔ $30 Recovery Hub</span>
+                        <span className="item-desc">Anti-tilt sizing & 14-step compounding blueprint</span>
                       </div>
-                      <span className="item-badge" style={{ background: '#d97706', color: '#fff' }}>0DTE</span>
+                      <span className="item-badge" style={{ background: '#d97706', color: '#fff' }}>GOAL</span>
                     </button>
+
                     <button className="popover-item" onClick={() => { setBrainSymbol('QQQ'); setIsBrainOpen(true); setIsToolsDropdownOpen(false); }} style={{ background: '#f0fdf4', borderColor: '#86efac' }}>
                       <div className="item-icon-wrapper" style={{ background: '#dcfce7', color: '#16a34a' }}>
                         <Cpu size={15} />
@@ -1591,7 +1519,7 @@ function App() {
                         <Briefcase size={15} />
                       </div>
                       <div className="item-text">
-                        <span className="item-title">Paper Portfolio & Tracker ($10K)</span>
+                        <span className="item-title">Paper Portfolio & Tracker</span>
                         <span className="item-desc">Follow top setups with live P&L and win rate</span>
                       </div>
                       <span className="item-badge" style={{ background: '#059669', color: '#fff' }}>SIM</span>
@@ -1618,16 +1546,6 @@ function App() {
                       </div>
                     </button>
 
-                    <button className="popover-item" onClick={() => { setIsCorrelationOpen(true); setIsToolsDropdownOpen(false); }}>
-                      <div className="item-icon-wrapper" style={{ background: '#fdf4ff', color: '#c026d3' }}>
-                        <Scale size={15} />
-                      </div>
-                      <div className="item-text">
-                        <span className="item-title">Cross-Asset Risk Matrix</span>
-                        <span className="item-desc">Pearson correlation heatmap</span>
-                      </div>
-                    </button>
-
                     <button className="popover-item" onClick={() => { setIsAlertsOpen(true); setIsToolsDropdownOpen(false); }}>
                       <div className="item-icon-wrapper" style={{ background: '#fefce8', color: '#ca8a04' }}>
                         <Bell size={15} />
@@ -1637,16 +1555,6 @@ function App() {
                         <span className="item-desc">Live triggers & webhooks</span>
                       </div>
                       {activeAlertCount > 0 && <span className="item-badge">{activeAlertCount}</span>}
-                    </button>
-
-                    <button className="popover-item" onClick={() => { setIsOptionsPayoffOpen(true); setIsToolsDropdownOpen(false); }}>
-                      <div className="item-icon-wrapper" style={{ background: '#ecfdf5', color: '#059669' }}>
-                        <Sliders size={15} />
-                      </div>
-                      <div className="item-text">
-                        <span className="item-title">0DTE Options Payoff</span>
-                        <span className="item-desc">Black-Scholes Greeks engine</span>
-                      </div>
                     </button>
 
                     <button className="popover-item" onClick={() => { setIsMonteCarloOpen(true); setIsToolsDropdownOpen(false); }}>
@@ -1739,31 +1647,12 @@ function App() {
           setPaperTradeSymbol(ast.symbol)
           setIsPaperTradingOpen(true)
         }}
-        onOpenOptionsPlay={(alert) => {
-          setOptionsPayoffSymbol(alert.symbol)
-          setOptionsPayoffStrategy(alert.type === 'BOUNCE' ? 'CALL' : 'BULL_SPREAD')
-          setOptionsPayoffTarget(alert.targetPrice)
-          setIsOptionsPayoffOpen(true)
-        }}
       />
 
       {/* Modern Unified Alpha Intelligence Section */}
       <section className="intel-suite-container">
         <div className="intel-suite-header font-mono">
           <div className="intel-suite-tabs">
-            <button
-              className={`intel-tab-btn ${intelView === 'option_pick' ? 'active' : ''}`}
-              onClick={() => { setIntelView('option_pick'); setIsIntelCollapsed(false); }}
-              style={{
-                color: intelView === 'option_pick' ? '#d97706' : undefined,
-                fontWeight: 800
-              }}
-            >
-              <Zap size={13} className="text-amber-500" />
-              <span>🔥 #1 Option Play Today ($31)</span>
-              <span className="intel-badge-pill" style={{ background: '#10b981', color: '#fff', fontWeight: 800 }}>96% AI</span>
-            </button>
-
             <button
               className={`intel-tab-btn ${intelView === 'golden' ? 'active' : ''}`}
               onClick={() => { setIntelView('golden'); setIsIntelCollapsed(false); }}
@@ -1872,7 +1761,7 @@ function App() {
                         setPaperTradeSymbol(activeGoldenSignal.symbol)
                         setIsPaperTradingOpen(true)
                       }}
-                      title={`Simulate trade on ${activeGoldenSignal.symbol} with $10K Paper Portfolio`}
+                      title={`Simulate trade on ${activeGoldenSignal.symbol} with Paper Portfolio`}
                       style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
                     >
                       <Briefcase size={12} />
@@ -1906,21 +1795,6 @@ function App() {
                   lang={lang}
                 />
               )}
-
-              {intelView === 'option_pick' && (
-                <DailyOptionPickGuide
-                  API_BASE_URL={API_BASE_URL}
-                  onOpenScalpDesk={(sym) => {
-                    setScalpSymbol(sym || 'QQQ')
-                    setIsScalpOpen(true)
-                  }}
-                  onOpenFullChart={(sym) => {
-                    const ast = signals.find(s => s.symbol === sym) || { symbol: sym, current_price: 704.75 }
-                    setFullChartAsset(ast)
-                  }}
-                  lang={lang}
-                />
-              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1935,8 +1809,8 @@ function App() {
         {activeNav === 'Volatility' ? (
           <motion.div className="volatility-matrix-view" variants={pageVariants} initial="hidden" animate="show">
             <div className="view-header">
-              <h2 className="view-title">Live Volatility & Options Matrix</h2>
-              <p className="view-subtitle">Calculated 30-day Implied Volatility Rank, Put/Call Ratios, 0DTE Moves, and Gamma Exposure (GEX)</p>
+              <h2 className="view-title">Live Volatility & Market Risk Matrix</h2>
+              <p className="view-subtitle">Calculated 30-day Implied Volatility Rank, Realized Volatility (HV), Implied Volatility (IV), and Gamma Exposure (GEX)</p>
             </div>
 
             <div className="volatility-table-card">
@@ -1946,18 +1820,16 @@ function App() {
                     <th>ASSET TICKER</th>
                     <th>CLOSE PRICE</th>
                     <th>IV RANK</th>
-                    <th>P/C RATIO</th>
-                    <th>0DTE IMPLIED MOVE</th>
+                    <th>HISTORICAL VOL</th>
+                    <th>IMPLIED VOL</th>
                     <th>GAMMA EXPOSURE</th>
-                    <th>VOLATILITY (HV / IV)</th>
+                    <th>RISK REGIME</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayedSignals.map((s) => {
                     const vol = volatilityData[s.symbol]
                     const ivRank = vol ? vol.iv_rank : (s.symbol === 'QQQ' || s.symbol === 'NVDA' ? 88 : 34)
-                    const pcRatio = vol ? vol.pc_ratio : '1.15'
-                    const impliedMove = vol ? vol.implied_move : '+/-$4.50'
                     const gammaVal = vol ? vol.gamma_exposure : (s.symbol === 'QQQ' || s.symbol === 'TSLA' ? 'Negative' : 'Positive')
                     const hv = vol ? vol.historical_volatility : '18.5%'
                     const iv = vol ? vol.implied_volatility : '22.4%'
@@ -1973,12 +1845,14 @@ function App() {
                         <td>
                           <span className={`badge-iv ${isHighIv ? 'high' : 'normal'}`}>{ivRank}%</span>
                         </td>
-                        <td className="mono-cell">{pcRatio}</td>
-                        <td className="mono-cell">{impliedMove}</td>
+                        <td className="mono-cell">{hv}</td>
+                        <td className="mono-cell">{iv}</td>
                         <td>
                           <span className={`badge-gex ${gammaVal.toLowerCase()}`}>{gammaVal}</span>
                         </td>
-                        <td className="mono-cell">{hv} / {iv}</td>
+                        <td>
+                          <span className={`badge-iv ${isHighIv ? 'high' : 'normal'}`}>{isHighIv ? 'High Vol' : 'Balanced'}</span>
+                        </td>
                       </tr>
                     )
                   })}
@@ -2270,19 +2144,9 @@ function App() {
                               candleSeries={candleSeries}
                               trendData={trendData}
                               priceFlash={priceFlashes[signal.symbol]}
-                              onOpenOptions={(sym) => {
-                                setOptionsPayoffSymbol(sym || 'QQQ')
-                                setOptionsPayoffDte(1)
-                                setOptionsPayoffStrategy('BULL_SPREAD')
-                                setIsOptionsPayoffOpen(true)
-                              }}
                               onOpenBrain={(sym) => {
                                 setBrainSymbol(sym || 'QQQ')
                                 setIsBrainOpen(true)
-                              }}
-                              onOpenScalp={(sym) => {
-                                setScalpSymbol(sym || 'QQQ')
-                                setIsScalpOpen(true)
                               }}
                             />
                           )

@@ -48,8 +48,7 @@ export default function BreakoutAlertsBar({
   signals = [],
   candleMap = {},
   onOpenFullChart,
-  onOpenPaperTrade,
-  onOpenOptionsPlay
+  onOpenPaperTrade
 }) {
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [isMuted, setIsMuted] = useState(true)
@@ -223,15 +222,7 @@ export default function BreakoutAlertsBar({
                     </div>
                   </div>
 
-                  {/* 1-Click Option Recommendation Strip (For Equities/ETFs) */}
-                  {!alert.symbol.includes('-USD') && (
-                    <div className="alert-option-chip font-mono">
-                      <span>⚡ OPTION: {Math.round(alert.currentPrice)}/{Math.round(alert.targetPrice)}C Spread</span>
-                      <span className="roi">~+240% ROI</span>
-                    </div>
-                  )}
-
-                  {/* Action Buttons: 1-Click Chart, 1-Click Option Play & 1-Click Paper Trade */}
+                  {/* Action Buttons: 1-Click Chart & 1-Click Paper Trade */}
                   <div className="alert-actions-row">
                     <button
                       className="alert-act-btn chart"
@@ -242,21 +233,10 @@ export default function BreakoutAlertsBar({
                       <span>Chart</span>
                     </button>
 
-                    {!alert.symbol.includes('-USD') && (
-                      <button
-                        className="alert-act-btn option"
-                        onClick={() => onOpenOptionsPlay?.(alert)}
-                        title="1-Click Analyze & Execute Option Contract"
-                      >
-                        <Sliders size={11} />
-                        <span>Option</span>
-                      </button>
-                    )}
-
                     <button
                       className="alert-act-btn trade"
                       onClick={() => onOpenPaperTrade?.(alert.asset)}
-                      title="1-Click Execute into $10K Paper Portfolio"
+                      title="1-Click Execute into Paper Portfolio"
                     >
                       <Zap size={11} />
                       <span>Trade</span>

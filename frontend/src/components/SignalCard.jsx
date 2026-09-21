@@ -21,7 +21,6 @@ import {
   Area
 } from 'recharts'
 import TradingChart from './TradingChart'
-import OptionsPayoffChart from './OptionsPayoffChart'
 import { getRiskRatingMeta } from '../utils/riskUtils'
 
 const formatCurrency = (val) => {
@@ -90,9 +89,7 @@ const SignalCard = memo(({
   candleSeries,
   trendData,
   priceFlash,
-  onOpenOptions,
-  onOpenBrain,
-  onOpenScalp
+  onOpenBrain
 }) => {
   const macdVal = parseFloat(signal.macd) || 0
   const macdSigVal = parseFloat(signal.macd_signal) || 0
@@ -345,7 +342,7 @@ const SignalCard = memo(({
         </div>
       </div>
 
-      {/* Options Drawer Toggle */}
+      {/* Quant Volatility & AI Radar Drawer Toggle */}
       <div className="drawer-btn-wrapper">
         <button
           className="minimal-drawer-btn"
@@ -354,14 +351,14 @@ const SignalCard = memo(({
             toggleDrawer(signal.symbol)
           }}
         >
-          <span>OPTIONS DATA</span>
+          <span>QUANT & VOLATILITY RADAR</span>
           <span style={{ display: 'inline-flex', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
             <ChevronDown size={13} />
           </span>
         </button>
       </div>
 
-      {/* Options Drawer Content */}
+      {/* Quant Volatility & AI Radar Drawer Content */}
       {isExpanded && (
         <div className="minimal-drawer-panel" style={{ marginTop: '0.5rem' }}>
           {isVolLoading ? (
@@ -380,13 +377,13 @@ const SignalCard = memo(({
                 </div>
 
                 <div className="opt-cell">
-                  <span className="opt-label">P/C RATIO</span>
-                  <span className="opt-value">{pcRatio}</span>
+                  <span className="opt-label">HIST VOL</span>
+                  <span className="opt-value">{vol ? vol.historical_volatility : '18.5%'}</span>
                 </div>
 
                 <div className="opt-cell">
-                  <span className="opt-label">0DTE MOVE</span>
-                  <span className="opt-value">{impliedMove}</span>
+                  <span className="opt-label">IMPLIED VOL</span>
+                  <span className="opt-value">{vol ? vol.implied_volatility : '22.4%'}</span>
                 </div>
 
                 <div className="opt-cell">
@@ -397,76 +394,6 @@ const SignalCard = memo(({
                 </div>
               </div>
 
-              <OptionsPayoffChart
-                underlyingPrice={displayedPrice}
-                symbol={signal.symbol}
-                isBuySignal={isBuy}
-              />
-
-              {!signal.symbol.includes('-USD') && (
-                <>
-                  <button
-                    type="button"
-                    className="open-scalp-card-btn font-mono"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onOpenScalp?.(signal.symbol)
-                    }}
-                    style={{
-                      width: '100%',
-                      marginTop: '0.65rem',
-                      padding: '0.45rem 0.75rem',
-                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                      color: '#000000',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem',
-                      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.35)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <Zap size={13} style={{ color: '#000000' }} />
-                    <span>⚡ 0DTE $31 Quick Scalp Desk & Live Sell Signals ({signal.symbol})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="open-options-modal-btn font-mono"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onOpenOptions?.(signal.symbol)
-                    }}
-                    style={{
-                      width: '100%',
-                      marginTop: '0.45rem',
-                      padding: '0.45rem 0.75rem',
-                      background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem',
-                      boxShadow: '0 2px 6px rgba(139, 92, 246, 0.3)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <Zap size={13} />
-                    <span>Launch 1-Day Options Payoff & Greeks Engine ({signal.symbol})</span>
-                  </button>
-                </>
-              )}
-
               <button
                 type="button"
                 className="open-brain-modal-btn font-mono"
@@ -476,7 +403,7 @@ const SignalCard = memo(({
                 }}
                 style={{
                   width: '100%',
-                  marginTop: '0.45rem',
+                  marginTop: '0.65rem',
                   padding: '0.45rem 0.75rem',
                   background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
                   color: '#ffffff',

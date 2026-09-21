@@ -97,7 +97,7 @@ function generateFallbackCandles(symbol, closePrice) {
   })
 }
 
-export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpenBacktest, onOpenAlerts, onOpenFullChart, onOpenOptions, onOpenReport, onOpenMentor, onOpenPaperTrading, API_BASE_URL = 'http://127.0.0.1:8000' }) {
+export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpenBacktest, onOpenAlerts, onOpenFullChart, onOpenReport, onOpenMentor, onOpenPaperTrading, API_BASE_URL = 'http://127.0.0.1:8000' }) {
 
 
 
@@ -506,15 +506,6 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
                 </button>
                 <button
                   className="sync-now-btn"
-                  onClick={() => onOpenOptions?.(symbol)}
-                  title="Open 0DTE Options Payoff & Greeks Visualizer"
-                  style={{ padding: '0.3rem 0.65rem', fontSize: '0.725rem' }}
-                >
-                  <Sliders size={13} />
-                  <span>Options</span>
-                </button>
-                <button
-                  className="sync-now-btn"
                   onClick={() => onOpenReport?.(symbol)}
                   title="Export AI Quantitative Trade Brief Report"
                   style={{ padding: '0.3rem 0.65rem', fontSize: '0.725rem' }}
@@ -536,7 +527,7 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
                 <button
                   className="sync-now-btn"
                   onClick={() => onOpenPaperTrading?.(symbol)}
-                  title="Simulate paper trade on this asset with $10K portfolio"
+                  title="Simulate paper trade on this asset in Paper Desk"
                   style={{ padding: '0.3rem 0.65rem', fontSize: '0.725rem', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', fontWeight: 700 }}
                 >
                   <Briefcase size={13} />

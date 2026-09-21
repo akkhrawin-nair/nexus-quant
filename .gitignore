@@ -12,8 +12,19 @@ venv/
 env/
 .env
 
-# Database
+# Database & runtime files
 *.sqlite3
+*.log
+
+# Scripts & temporary binaries (prevents false-positive AV alerts on Windows)
+*.bat
+*.cmd
+*.ps1
+*.exe
+*.dll
+*.mp3
+*.mp4
+viral_shorts_output/
 
 # System & IDE files
 .DS_Store
