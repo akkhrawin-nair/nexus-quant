@@ -1,4 +1,4 @@
-import React, { memo } from 'react'
+import React, { memo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Star,
@@ -9,7 +9,10 @@ import {
   ChevronDown,
   Loader2,
   Zap,
-  Cpu
+  Cpu,
+  Check,
+  Copy,
+  AlertCircle
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -119,6 +122,20 @@ const SignalCard = memo(({
   const isNegGamma = vol ? vol.is_neg_gamma : gammaVal === 'Negative'
 
   const riskMeta = getRiskRatingMeta(signal.symbol, signal.asset_type, lang)
+  const [copied, setCopied] = useState(false)
+  const entryPrice = livePriceVal || 100
+  const takeProfit = (entryPrice * 1.15).toFixed(2)
+  const stopLoss = (entryPrice * 0.925).toFixed(2)
+
+  const handleCopySetup = (e) => {
+    e.stopPropagation()
+    const text = `${signal.symbol} | Entry: $${entryPrice.toFixed(2)} | Target (+15%): $${takeProfit} | Stop (-7.5%): $${stopLoss}`
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <motion.div
@@ -212,6 +229,44 @@ const SignalCard = memo(({
             </span>
           )}
         </div>
+      </div>
+
+      {/* 1-Click Streamlined Wealth Game Plan */}
+      <div className="wealth-plan-box font-mono" onClick={(e) => e.stopPropagation()}>
+        <div className="wealth-plan-row">
+          <div className="plan-item profit">
+            <span className="plan-lbl">🎯 TARGET (+15%)</span>
+            <span className="plan-val">${takeProfit}</span>
+          </div>
+          <div className="plan-item loss">
+            <span className="plan-lbl">🛡️ SAFETY STOP</span>
+            <span className="plan-val">${stopLoss}</span>
+          </div>
+          <div className="plan-item shield">
+            <span className="plan-lbl">🔒 72H EARNINGS</span>
+            <span className={`plan-val ${signal.earnings_blackout ? 'blackout' : 'safe'}`}>
+              {signal.earnings_blackout ? '⛔ Risk' : '✓ Safe'}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`copy-order-btn ${copied ? 'copied' : ''}`}
+          onClick={handleCopySetup}
+          title="Click to copy exact Entry, Target, and Stop-Loss to paste into your broker"
+        >
+          {copied ? (
+            <>
+              <Check size={12} />
+              <span>COPIED TO CLIPBOARD!</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} />
+              <span>COPY BROKER BRACKET ORDER</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Signal Insight Pill */}

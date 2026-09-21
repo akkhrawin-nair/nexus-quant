@@ -14664,4 +14664,280 @@ a[title*="TradingView"], #tv-attr-logo, .tv-lightweight-charts-watermark {
 @keyframes pulse-danger {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
-}
+}
+
+/* ==========================================================================
+   STREAMLINED WEALTH ENGINE: WEALTH PLAN BOX & DAILY WEALTH HERO
+   ========================================================================== */
+
+.wealth-plan-box {
+  margin: 0.5rem 0;
+  padding: 0.55rem 0.65rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  transition: border-color 0.15s ease;
+}
+
+.wealth-plan-box:hover {
+  border-color: #cbd5e1;
+}
+
+.wealth-plan-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  text-align: center;
+}
+
+.plan-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: #ffffff;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+}
+
+.plan-lbl {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.3px;
+}
+
+.plan-val {
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+.plan-item.profit .plan-val {
+  color: #059669;
+}
+
+.plan-item.loss .plan-val {
+  color: #dc2626;
+}
+
+.plan-val.safe {
+  color: #0284c7;
+}
+
+.plan-val.blackout {
+  color: #b91c1c;
+}
+
+.copy-order-btn {
+  width: 100%;
+  padding: 0.42rem 0.6rem;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid #0f172a;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.copy-order-btn:hover {
+  background: #1e293b;
+  border-color: #1e293b;
+  transform: translateY(-1px);
+}
+
+.copy-order-btn.copied {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+/* Daily Wealth Command Center Hero */
+.daily-wealth-hero {
+  margin: 1rem 0 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.daily-wealth-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.85rem;
+}
+
+.hero-market-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+  animation: pulse-indicator 2s infinite;
+}
+
+@keyframes pulse-indicator {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+.status-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.status-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.hero-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: #334155;
+}
+
+.daily-wealth-pick-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pick-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pick-badge {
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.pick-symbol {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #0f172a;
+  font-family: var(--font-mono);
+}
+
+.pick-price {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-family: var(--font-mono);
+}
+
+.pick-targets {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.target-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.target-lbl {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.target-val {
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+.target-val.profit {
+  color: #059669;
+}
+
+.target-val.loss {
+  color: #dc2626;
+}
+
+.hero-copy-btn {
+  padding: 0.55rem 1.25rem;
+  background: #10b981;
+  color: #0f172a;
+  border: 1px solid #059669;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+}
+
+.hero-copy-btn:hover {
+  background: #059669;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.hero-copy-btn.copied {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+

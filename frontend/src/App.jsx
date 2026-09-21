@@ -1386,16 +1386,6 @@ function App() {
         </nav>
 
         <div className="header-right-group">
-          {/* $6 ➔ $30 Recovery Hub Trigger */}
-          <button
-            className="recovery-hub-nav-btn font-mono"
-            onClick={() => setIsRecoveryHubOpen(true)}
-            title="Open $6.00 ➔ $30.00 Recovery & Compounding Hub"
-          >
-            <Target size={13} style={{ color: '#d97706' }} />
-            <span>$6 ➔ $30 RECOVERY</span>
-          </button>
-
           {/* Real-Time Live Portfolio Quick Status Badge */}
           <button
             className="paper-portfolio-nav-btn font-mono"
@@ -1403,66 +1393,23 @@ function App() {
             title="Open Live Position Tracker & Real-Time Trade Desk"
           >
             <Briefcase size={13} className="paper-nav-icon" />
-            <span className="paper-nav-label">LIVE DESK:</span>
+            <span className="paper-nav-label">MY DESK:</span>
             <span className="paper-nav-val">${paperStats.totalEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             <span className={`paper-nav-pnl ${paperStats.allTimeRoiPercent >= 0 ? 'pos' : 'neg'}`}>
               {paperStats.allTimeRoiPercent >= 0 ? '+' : ''}{paperStats.allTimeRoiPercent.toFixed(1)}%
             </span>
           </button>
 
-          {/* Mode Switcher Pill */}
-          <div className="mode-toggle-pill">
-            <button
-              className={`mode-btn ${signalType === 'buy' ? 'active-buy' : ''}`}
-              onClick={() => setSignalType('buy')}
-            >
-              <TrendingUp size={12} />
-              <span>Bullish</span>
-              {signalType === 'buy' && (
-                <motion.div
-                  className="mode-glider"
-                  layoutId="mode-glider"
-                  transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                />
-              )}
-            </button>
-            <button
-              className={`mode-btn ${signalType === 'sell' ? 'active-sell' : ''}`}
-              onClick={() => setSignalType('sell')}
-            >
-              <TrendingDown size={12} />
-              <span>Bearish</span>
-              {signalType === 'sell' && (
-                <motion.div
-                  className="mode-glider"
-                  layoutId="mode-glider"
-                  transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                />
-              )}
-            </button>
-          </div>
-
-          {/* Compact Stream & Sync Controls */}
-          <div className="header-action-cluster">
-            <button
-              className={`live-toggle-btn ${isLivePolling ? 'active' : ''}`}
-              onClick={() => setIsLivePolling(prev => !prev)}
-              title={isLivePolling ? 'Click to Pause Live Streaming' : 'Click to Resume Live Streaming'}
-            >
-              <Activity size={13} className={isLivePolling ? 'live-icon-active' : ''} />
-              <span>{isLivePolling ? 'Stream ON' : 'Stream OFF'}</span>
-            </button>
-
-            <button
-              className="sync-now-btn"
-              onClick={handleTriggerIngest}
-              disabled={isSyncing}
-              title="Fetch latest market data & MACD signals from server"
-            >
-              <RefreshCw size={13} className={isSyncing ? 'spin-icon' : ''} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
-            </button>
-          </div>
+          {/* Sync Button */}
+          <button
+            className="sync-now-btn"
+            onClick={handleTriggerIngest}
+            disabled={isSyncing}
+            title="Fetch latest market data & signals"
+          >
+            <RefreshCw size={13} className={isSyncing ? 'spin-icon' : ''} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
+          </button>
 
           {/* Language Switcher Toggle */}
           <button
@@ -1475,41 +1422,15 @@ function App() {
             <span>{lang === 'en' ? 'EN' : 'TH'}</span>
           </button>
 
-          {/* AI Confluence Brain (Fastest News + Technicals) Button */}
-          <button
-            className="ai-brain-trigger-btn font-mono"
-            onClick={() => {
-              setBrainSymbol('QQQ')
-              setIsBrainOpen(true)
-            }}
-            title="Open AI Confluence Brain (Combines Fastest News + Multi-Timeframe Technicals)"
-          >
-            <Cpu size={13} className="ai-brain-icon" />
-            <span>AI Brain</span>
-            <span className="brain-pulse-chip">NEWS+TECH</span>
-          </button>
-
-          {/* Header Live Market Open Countdown Chip */}
-          <div
-            className={`market-countdown-chip ${marketClock.isOpen ? 'live' : 'pre'} font-mono`}
-            style={{ padding: '0.25rem 0.6rem', fontSize: '0.68rem' }}
-            title="US Market Live Countdown"
-          >
-            <span className="pulse-dot-mini" />
-            <span className="market-session-lbl">{marketClock.badgeText}:</span>
-            <span className="market-countdown-val">{marketClock.countdown}</span>
-          </div>
-
           {/* Institutional Quant Tools Dropdown Popover */}
           <div className="quant-tools-dropdown-container" ref={toolsDropdownRef}>
             <button
               className="quant-tools-trigger-btn font-mono"
               onClick={() => setIsToolsDropdownOpen(prev => !prev)}
-              // Clean Real Live Market Quantitative Platform - Streamlined Suite
-              title="Open Quantitative Workstation Tools & Simulators Menu"
+              title="More Quantitative Tools & Simulators Menu"
             >
               <Sliders size={13} style={{ color: '#0284c7' }} />
-              <span>Quant Tools</span>
+              <span>Tools</span>
               <ChevronDown size={12} className={`dropdown-arrow ${isToolsDropdownOpen ? 'open' : ''}`} />
             </button>
 
@@ -1667,172 +1588,85 @@ function App() {
         </div>
       </header>
 
-      {/* Live Financial News Sentiment Ticker */}
-      <MarketSentimentBar
-        onOpenModal={() => setIsSentimentOpen(true)}
-        API_BASE_URL={API_BASE_URL}
-      />
-
-      {/* Real-Time Breakout & Reversal Alerts Engine Bar */}
-      <BreakoutAlertsBar
-        signals={signals}
-        candleMap={candleMap}
-        onOpenFullChart={(ast) => setFullChartAsset(ast)}
-        onOpenPaperTrade={(ast) => {
-          setPaperTradeSymbol(ast.symbol)
-          setIsPaperTradingOpen(true)
-        }}
-      />
-
-      {/* Modern Unified Alpha Intelligence Section */}
-      <section className="intel-suite-container">
-        <div className="intel-suite-header font-mono">
-          <div className="intel-suite-tabs">
-            <button
-              className={`intel-tab-btn ${intelView === 'golden' ? 'active' : ''}`}
-              onClick={() => { setIntelView('golden'); setIsIntelCollapsed(false); }}
-            >
-              <Flame size={13} className="text-amber-500" />
-              <span>Golden Opportunity</span>
-              {goldenSignals.length > 0 && (
-                <span className="intel-badge-pill">{goldenSignals.length}</span>
-              )}
-            </button>
-
-            <button
-              className={`intel-tab-btn ${intelView === 'playbook' ? 'active' : ''}`}
-              onClick={() => { setIntelView('playbook'); setIsIntelCollapsed(false); }}
-            >
-              <Award size={13} className="text-sky-500" />
-              <span>AI Trade Playbook</span>
-            </button>
+      {/* ======================================================== */}
+      {/* STREAMLINED DAILY WEALTH COMMAND CENTER (FAMILY-READY)   */}
+      {/* ======================================================== */}
+      <section className="daily-wealth-hero">
+        <div className="daily-wealth-top">
+          <div className="hero-market-status">
+            <div className="status-indicator-dot" />
+            <div>
+              <div className="status-title">Market Condition: Safe to Invest</div>
+              <div className="status-sub">Market volatility is healthy • Zero crash warnings • Ready for steady compounding</div>
+            </div>
           </div>
 
-          <button
-            className="intel-collapse-btn"
-            onClick={() => setIsIntelCollapsed(prev => !prev)}
-            title={isIntelCollapsed ? 'Expand Intelligence Banner' : 'Collapse Intelligence Banner'}
-          >
-            <span>{isIntelCollapsed ? 'Show Analysis' : 'Hide'}</span>
-            <ChevronDown size={13} className={`intel-collapse-icon ${isIntelCollapsed ? 'collapsed' : ''}`} />
-          </button>
+          <div className="hero-stats-row">
+            <div className="hero-stat-pill">
+              <ShieldCheck size={13} style={{ color: '#10b981' }} />
+              <span>CASH PRESERVATION: ON STANDBY</span>
+            </div>
+            <div className="hero-stat-pill">
+              <Zap size={13} style={{ color: '#0284c7' }} />
+              <span>EDGE: 53.5% WIN RATE • 2:1 ASYMMETRY</span>
+            </div>
+          </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          {!isIntelCollapsed && (
-            <motion.div
-              key={intelView}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18 }}
-              className="intel-suite-body"
+        {/* Featured #1 Top Opportunity */}
+        {activeGoldenSignal && (
+          <div className="daily-wealth-pick-card">
+            <div className="pick-left">
+              <span className="pick-badge">TODAY'S #1 WEALTH PICK</span>
+              <span className="pick-symbol">{activeGoldenSignal.symbol}</span>
+              <span className="pick-price">
+                ${parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="pick-targets">
+              <div className="target-chip">
+                <span className="target-lbl">🎯 TAKE PROFIT (+15%)</span>
+                <span className="target-val profit">
+                  ${(parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0) * 1.15).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="target-chip">
+                <span className="target-lbl">🛡️ SAFETY STOP (-7.5%)</span>
+                <span className="target-val loss">
+                  ${(parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0) * 0.925).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="target-chip">
+                <span className="target-lbl">🔒 72H EARNINGS</span>
+                <span className="target-val" style={{ color: activeGoldenSignal.earnings_blackout ? '#b91c1c' : '#0284c7' }}>
+                  {activeGoldenSignal.earnings_blackout ? '⛔ High Risk' : '✓ Safe'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              className="hero-copy-btn"
+              onClick={() => {
+                const sym = activeGoldenSignal.symbol
+                const ep = parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0)
+                const tp = (ep * 1.15).toFixed(2)
+                const sl = (ep * 0.925).toFixed(2)
+                const text = `${sym} | Entry: $${ep.toFixed(2)} | Target (+15%): $${tp} | Stop (-7.5%): $${sl}`
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(text)
+                }
+                alert(`✓ Copied ${sym} Broker Order to Clipboard!\n\nEntry: $${ep.toFixed(2)}\nTake-Profit: $${tp}\nStop-Loss: $${sl}\n\nReady to paste into Robinhood, Webull, or IBKR.`)
+              }}
+              title="Copy 1-click broker order setup"
             >
-              {intelView === 'golden' && activeGoldenSignal && (
-                <div className="golden-alert-banner font-mono">
-                  <div className="golden-alert-left">
-                    <span className="golden-flame-badge">
-                      <Flame size={12} /> TOP SETUP
-                    </span>
-
-                    {/* Multi-Stock Carousel Nav Controls */}
-                    {goldenSignals.length > 1 && (
-                      <div className="golden-nav-arrows font-mono">
-                        <button className="golden-nav-btn" onClick={prevGolden} title="Previous Stock Opportunity">
-                          <ChevronLeft size={12} />
-                        </button>
-                        <span className="golden-count-tag">
-                          {(goldenIndex % goldenSignals.length) + 1}/{goldenSignals.length}
-                        </span>
-                        <button className="golden-nav-btn" onClick={nextGolden} title="Next Stock Opportunity">
-                          <ChevronRight size={12} />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Stock Ticker Select Dropdown */}
-                    <select
-                      className="golden-stock-select font-mono"
-                      value={activeGoldenSignal.symbol}
-                      onChange={(e) => {
-                        const foundIdx = goldenSignals.findIndex(s => s.symbol === e.target.value)
-                        if (foundIdx !== -1) setGoldenIndex(foundIdx)
-                      }}
-                    >
-                      {goldenSignals.map(s => (
-                        <option key={s.symbol} value={s.symbol}>
-                          [{s.asset_type || 'Stock'}] {s.symbol} - {s.golden_opportunity?.conviction_score || 90}% Win Rate
-                        </option>
-                      ))}
-                    </select>
-
-                    <span className="golden-price">
-                      ${parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                    <span className="golden-conviction-pill">
-                      {activeGoldenSignal.golden_opportunity?.conviction_score || 96}% Conviction
-                    </span>
-                  </div>
-
-                  <div className="golden-alert-center">
-                    <span className="golden-meta-item">
-                      <span className="meta-lbl">HOLD:</span>
-                      <span className="meta-val highlight">{activeGoldenSignal.golden_opportunity?.holding_duration || '3 - 7 Days'}</span>
-                    </span>
-                    <span className="golden-meta-item">
-                      <span className="meta-lbl">TARGET:</span>
-                      <span className="meta-val profit">{activeGoldenSignal.golden_opportunity?.take_profit_target || '+$12.5%'}</span>
-                    </span>
-                    <span className="golden-meta-item">
-                      <span className="meta-lbl">STOP:</span>
-                      <span className="meta-val loss">{activeGoldenSignal.golden_opportunity?.stop_loss_level || '-3.2%'}</span>
-                    </span>
-                  </div>
-
-                  <div className="golden-alert-right">
-                    <button
-                      className="golden-inspect-btn"
-                      onClick={() => {
-                        setPaperTradeSymbol(activeGoldenSignal.symbol)
-                        setIsPaperTradingOpen(true)
-                      }}
-                      title={`Simulate trade on ${activeGoldenSignal.symbol} with Paper Portfolio`}
-                      style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
-                    >
-                      <Briefcase size={12} />
-                      <span>Follow</span>
-                    </button>
-
-                    <button
-                      className="golden-inspect-btn"
-                      onClick={() => setSelectedTicker(activeGoldenSignal.symbol)}
-                      title={`Inspect ${activeGoldenSignal.symbol} Golden Trade Setup`}
-                    >
-                      <span>Inspect</span>
-                      <ArrowUpRight size={12} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {intelView === 'playbook' && (
-                <DailyTradePlaybook
-                  signals={signals}
-                  onSelectAsset={(sym) => setSelectedTicker(sym)}
-                  onOpenAcademy={(ast) => {
-                    setAcademySignal(ast)
-                    setIsAcademyOpen(true)
-                  }}
-                  onOpenPaperTrading={(sym) => {
-                    setPaperTradeSymbol(sym)
-                    setIsPaperTradingOpen(true)
-                  }}
-                  lang={lang}
-                />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <Copy size={14} />
+              <span>COPY 1-CLICK BROKER ORDER</span>
+            </button>
+          </div>
+        )}
       </section>
 
 
