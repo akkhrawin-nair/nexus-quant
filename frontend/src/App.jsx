@@ -53,6 +53,7 @@ import {
   Award,
   Briefcase,
   Target,
+  ShieldCheck,
   Video
 } from 'lucide-react'
 

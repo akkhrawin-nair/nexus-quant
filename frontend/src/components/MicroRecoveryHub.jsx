@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Target,
@@ -14,7 +14,10 @@ import {
   Flame,
   ArrowRight,
   Copy,
-  Check
+  Check,
+  Newspaper,
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react'
 
 export default function MicroRecoveryHub({
@@ -33,12 +36,51 @@ export default function MicroRecoveryHub({
 
   const [copiedOrder, setCopiedOrder] = useState(false)
 
-  // Sizing Calculator State
+  // Sizing Calculator State (Wider swing volatility buffer: -7.5% Stop, +15% Target)
   const [calcSymbol, setCalcSymbol] = useState('NVDA')
   const [calcEntry, setCalcEntry] = useState(219.74)
-  const [calcStopLoss, setCalcStopLoss] = useState(213.15)
-  const [calcTakeProfit, setCalcTakeProfit] = useState(239.50)
-  const [riskTolerancePct, setRiskTolerancePct] = useState(5) // 5% max risk default ($0.30 on $6)
+  const [calcStopLoss, setCalcStopLoss] = useState(203.26)
+  const [calcTakeProfit, setCalcTakeProfit] = useState(252.70)
+  const [riskTolerancePct, setRiskTolerancePct] = useState(8) // 8% risk buffer ($0.48 on $6)
+  const [activeBuffer, setActiveBuffer] = useState('swing') // 'tight' (-4.5%), 'swing' (-7.5%), 'wide' (-10%)
+  const [newsCatalyst, setNewsCatalyst] = useState(null)
+  const [loadingNews, setLoadingNews] = useState(false)
+
+  // Fetch real-time news catalyst whenever symbol changes or modal opens
+  useEffect(() => {
+    if (!isOpen || !calcSymbol) return
+    let isMounted = true
+    setLoadingNews(true)
+    fetch(`http://127.0.0.1:8000/api/brain/fusion/?symbol=${encodeURIComponent(calcSymbol)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted) {
+          setNewsCatalyst(data)
+          setLoadingNews(false)
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLoadingNews(false)
+      })
+    return () => { isMounted = false }
+  }, [isOpen, calcSymbol])
+
+  // Apply stop loss buffer preset
+  const applyBufferPreset = (type, basePrice = calcEntry) => {
+    setActiveBuffer(type)
+    const price = parseFloat(basePrice) || 100
+    if (type === 'tight') {
+      setCalcStopLoss(parseFloat((price * 0.955).toFixed(2)))
+      setCalcTakeProfit(parseFloat((price * 1.091).toFixed(2)))
+    } else if (type === 'swing') {
+      // Expanded swing volatility buffer: absorbs normal intraday 3.5%-5% market noise
+      setCalcStopLoss(parseFloat((price * 0.925).toFixed(2)))
+      setCalcTakeProfit(parseFloat((price * 1.150).toFixed(2)))
+    } else if (type === 'wide') {
+      setCalcStopLoss(parseFloat((price * 0.900).toFixed(2)))
+      setCalcTakeProfit(parseFloat((price * 1.200).toFixed(2)))
+    }
+  }
 
   // Sync selected symbol from signals
   const handleSelectSignalForCalc = (sig) => {
@@ -47,9 +89,7 @@ export default function MicroRecoveryHub({
     const price = parseFloat(sig.current_price || sig.close_price || 150)
     setCalcSymbol(sym)
     setCalcEntry(price)
-    // Default 3% stop loss and 9% take profit (1:3 R/R)
-    setCalcStopLoss(parseFloat((price * 0.97).toFixed(2)))
-    setCalcTakeProfit(parseFloat((price * 1.09).toFixed(2)))
+    applyBufferPreset(activeBuffer, price)
   }
 
   // Copy exact order parameters to clipboard for typing into real brokerage app
@@ -331,7 +371,10 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                       type="number"
                       step="any"
                       value={calcStopLoss}
-                      onChange={(e) => setCalcStopLoss(Number(e.target.value))}
+                      onChange={(e) => {
+                        setCalcStopLoss(Number(e.target.value))
+                        setActiveBuffer('custom')
+                      }}
                       className="calc-input stop"
                     />
                   </div>
@@ -341,10 +384,71 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                       type="number"
                       step="any"
                       value={calcTakeProfit}
-                      onChange={(e) => setCalcTakeProfit(Number(e.target.value))}
+                      onChange={(e) => {
+                        setCalcTakeProfit(Number(e.target.value))
+                        setActiveBuffer('custom')
+                      }}
                       className="calc-input target"
                     />
                   </div>
+                </div>
+
+                {/* Volatility Stop-Loss Buffer Presets */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => applyBufferPreset('tight')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      borderRadius: '4px',
+                      border: activeBuffer === 'tight' ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                      background: activeBuffer === 'tight' ? '#eff6ff' : '#f8fafc',
+                      color: activeBuffer === 'tight' ? '#1d4ed8' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                    title="Tight Intraday Buffer (-4.5% Stop / +9.1% Target)"
+                  >
+                    Tight (-4.5%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyBufferPreset('swing')}
+                    style={{
+                      flex: 1.4,
+                      padding: '4px 6px',
+                      fontSize: '0.62rem',
+                      fontWeight: 800,
+                      borderRadius: '4px',
+                      border: activeBuffer === 'swing' ? '1px solid #10b981' : '1px solid #e2e8f0',
+                      background: activeBuffer === 'swing' ? '#ecfdf5' : '#f8fafc',
+                      color: activeBuffer === 'swing' ? '#047857' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                    title="Recommended: Expands stop-loss to -7.5% to absorb normal ATR market noise and avoid premature morning stop-outs"
+                  >
+                    🛡️ Swing Buffer (-7.5%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyBufferPreset('wide')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      borderRadius: '4px',
+                      border: activeBuffer === 'wide' ? '1px solid #8b5cf6' : '1px solid #e2e8f0',
+                      background: activeBuffer === 'wide' ? '#f5f3ff' : '#f8fafc',
+                      color: activeBuffer === 'wide' ? '#6d28d9' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                    title="Wide Trend Buffer (-10% Stop / +20% Target)"
+                  >
+                    Wide (-10%)
+                  </button>
                 </div>
 
                 {/* Sizing Output Display Box */}
@@ -367,9 +471,68 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                   </div>
                   <div className="output-row rr">
                     <span>Risk-to-Reward Ratio:</span>
-                    <span className={`rr-badge ${parseFloat(sizingAnalysis.rrRatio) >= 2.5 ? 'great' : 'warning'}`}>
-                      1 : {sizingAnalysis.rrRatio} {parseFloat(sizingAnalysis.rrRatio) >= 2.5 ? '✅ EXCELLENT' : '⚠️ LOW R/R'}
+                    <span className={`rr-badge ${parseFloat(sizingAnalysis.rrRatio) >= 2.0 ? 'great' : 'warning'}`}>
+                      1 : {sizingAnalysis.rrRatio} {parseFloat(sizingAnalysis.rrRatio) >= 2.0 ? '✅ EXCELLENT' : '⚠️ LOW R/R'}
                     </span>
+                  </div>
+
+                  {/* Real-Time Breaking News Catalyst Banner */}
+                  <div style={{
+                    marginTop: '0.6rem',
+                    padding: '0.55rem',
+                    background: '#f8fafc',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Newspaper size={12} color="#0284c7" />
+                        <span style={{ fontSize: '0.66rem', fontWeight: 800, color: '#0f172a' }}>
+                          REAL-TIME NEWS CATALYST ({calcSymbol})
+                        </span>
+                      </div>
+                      {newsCatalyst?.news_score ? (
+                        <span style={{
+                          fontSize: '0.6rem',
+                          fontWeight: 800,
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          background: newsCatalyst.news_score >= 65 ? '#dcfce7' : '#fee2e2',
+                          color: newsCatalyst.news_score >= 65 ? '#15803d' : '#b91c1c'
+                        }}>
+                          {newsCatalyst.news_score >= 65 ? '🔥 BULLISH' : '⚠️ CAUTION'} {newsCatalyst.news_score}%
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {loadingNews ? (
+                      <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                        Listening to live financial news wire for {calcSymbol}...
+                      </div>
+                    ) : newsCatalyst?.news && newsCatalyst.news.length > 0 ? (
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#1e293b', lineHeight: 1.3, marginBottom: '0.2rem' }}>
+                          "{newsCatalyst.news[0].title}"
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.62rem', color: '#64748b' }}>
+                          <span>{newsCatalyst.news[0].source} • {newsCatalyst.news[0].time}</span>
+                          {newsCatalyst.news[0].url && (
+                            <a
+                              href={newsCatalyst.news[0].url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}
+                            >
+                              Source <ExternalLink size={9} />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                        No acute high-impact catalyst detected in last 60m. Technical confluence holds priority.
+                      </div>
+                    )}
                   </div>
 
                   {/* Institutional 5-Layer Confluence Edge Verification */}
