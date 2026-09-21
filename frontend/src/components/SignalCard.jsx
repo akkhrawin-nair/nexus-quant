@@ -124,12 +124,14 @@ const SignalCard = memo(({
   const riskMeta = getRiskRatingMeta(signal.symbol, signal.asset_type, lang)
   const [copied, setCopied] = useState(false)
   const entryPrice = livePriceVal || 100
-  const takeProfit = (entryPrice * 1.15).toFixed(2)
-  const stopLoss = (entryPrice * 0.925).toFixed(2)
+  const takeProfitVal = entryPrice * 1.15
+  const stopLossVal = entryPrice * 0.925
+  const takeProfitStr = formatCurrency(takeProfitVal)
+  const stopLossStr = formatCurrency(stopLossVal)
 
   const handleCopySetup = (e) => {
     e.stopPropagation()
-    const text = `${signal.symbol} | Entry: $${entryPrice.toFixed(2)} | Target (+15%): $${takeProfit} | Stop (-7.5%): $${stopLoss}`
+    const text = `${signal.symbol} | Entry: ${formatCurrency(entryPrice)} | Target (+15%): ${takeProfitStr} | Stop (-7.5%): ${stopLossStr}`
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text)
     }
@@ -236,11 +238,11 @@ const SignalCard = memo(({
         <div className="wealth-plan-row">
           <div className="plan-item profit">
             <span className="plan-lbl">🎯 TARGET (+15%)</span>
-            <span className="plan-val">${takeProfit}</span>
+            <span className="plan-val">{takeProfitStr}</span>
           </div>
           <div className="plan-item loss">
             <span className="plan-lbl">🛡️ SAFETY STOP</span>
-            <span className="plan-val">${stopLoss}</span>
+            <span className="plan-val">{stopLossStr}</span>
           </div>
           <div className="plan-item shield">
             <span className="plan-lbl">🔒 72H EARNINGS</span>

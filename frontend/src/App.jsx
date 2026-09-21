@@ -178,6 +178,7 @@ function App() {
 
   // Quant Tools Popover Dropdown Menu State
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false)
+  const [heroCopied, setHeroCopied] = useState(false)
   const toolsDropdownRef = useRef(null)
 
   useEffect(() => {
@@ -1616,59 +1617,69 @@ function App() {
         </div>
 
         {/* Featured #1 Top Opportunity */}
-        {activeGoldenSignal && (
-          <div className="daily-wealth-pick-card">
-            <div className="pick-left">
-              <span className="pick-badge">TODAY'S #1 WEALTH PICK</span>
-              <span className="pick-symbol">{activeGoldenSignal.symbol}</span>
-              <span className="pick-price">
-                ${parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0).toFixed(2)}
-              </span>
+        {activeGoldenSignal && (() => {
+          const ep = parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0)
+          const tp = ep * 1.15
+          const sl = ep * 0.925
+          const epStr = formatCurrency(ep)
+          const tpStr = formatCurrency(tp)
+          const slStr = formatCurrency(sl)
+
+          return (
+            <div className="daily-wealth-pick-card">
+              <div className="pick-left">
+                <span className="pick-badge">TODAY'S #1 WEALTH PICK</span>
+                <span className="pick-symbol">{activeGoldenSignal.symbol}</span>
+                <span className="pick-price">{epStr}</span>
+              </div>
+
+              <div className="pick-targets">
+                <div className="target-chip">
+                  <span className="target-lbl">🎯 TAKE PROFIT (+15%)</span>
+                  <span className="target-val profit">{tpStr}</span>
+                </div>
+
+                <div className="target-chip">
+                  <span className="target-lbl">🛡️ SAFETY STOP (-7.5%)</span>
+                  <span className="target-val loss">{slStr}</span>
+                </div>
+
+                <div className="target-chip">
+                  <span className="target-lbl">🔒 72H EARNINGS</span>
+                  <span className="target-val" style={{ color: activeGoldenSignal.earnings_blackout ? '#b91c1c' : '#0284c7' }}>
+                    {activeGoldenSignal.earnings_blackout ? '⛔ High Risk' : '✓ Safe'}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                className={`hero-copy-btn ${heroCopied ? 'copied' : ''}`}
+                onClick={() => {
+                  const sym = activeGoldenSignal.symbol
+                  const text = `${sym} | Entry: ${epStr} | Target (+15%): ${tpStr} | Stop (-7.5%): ${slStr}`
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text)
+                  }
+                  setHeroCopied(true)
+                  setTimeout(() => setHeroCopied(false), 2500)
+                }}
+                title="Copy 1-click broker order setup"
+              >
+                {heroCopied ? (
+                  <>
+                    <Check size={14} />
+                    <span>✓ COPIED TO CLIPBOARD!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} />
+                    <span>COPY 1-CLICK BROKER ORDER</span>
+                  </>
+                )}
+              </button>
             </div>
-
-            <div className="pick-targets">
-              <div className="target-chip">
-                <span className="target-lbl">🎯 TAKE PROFIT (+15%)</span>
-                <span className="target-val profit">
-                  ${(parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0) * 1.15).toFixed(2)}
-                </span>
-              </div>
-
-              <div className="target-chip">
-                <span className="target-lbl">🛡️ SAFETY STOP (-7.5%)</span>
-                <span className="target-val loss">
-                  ${(parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0) * 0.925).toFixed(2)}
-                </span>
-              </div>
-
-              <div className="target-chip">
-                <span className="target-lbl">🔒 72H EARNINGS</span>
-                <span className="target-val" style={{ color: activeGoldenSignal.earnings_blackout ? '#b91c1c' : '#0284c7' }}>
-                  {activeGoldenSignal.earnings_blackout ? '⛔ High Risk' : '✓ Safe'}
-                </span>
-              </div>
-            </div>
-
-            <button
-              className="hero-copy-btn"
-              onClick={() => {
-                const sym = activeGoldenSignal.symbol
-                const ep = parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0)
-                const tp = (ep * 1.15).toFixed(2)
-                const sl = (ep * 0.925).toFixed(2)
-                const text = `${sym} | Entry: $${ep.toFixed(2)} | Target (+15%): $${tp} | Stop (-7.5%): $${sl}`
-                if (navigator.clipboard) {
-                  navigator.clipboard.writeText(text)
-                }
-                alert(`✓ Copied ${sym} Broker Order to Clipboard!\n\nEntry: $${ep.toFixed(2)}\nTake-Profit: $${tp}\nStop-Loss: $${sl}\n\nReady to paste into Robinhood, Webull, or IBKR.`)
-              }}
-              title="Copy 1-click broker order setup"
-            >
-              <Copy size={14} />
-              <span>COPY 1-CLICK BROKER ORDER</span>
-            </button>
-          </div>
-        )}
+          )
+        })()}
       </section>
 
 
