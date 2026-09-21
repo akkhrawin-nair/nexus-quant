@@ -14410,4 +14410,201 @@ a[title*="TradingView"], #tv-attr-logo, .tv-lightweight-charts-watermark {
 .recovery-hub-nav-btn:hover {
   background: #fde68a;
   transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   INSTITUTIONAL 5-LAYER CONFLUENCE & 70%+ STATISTICAL EDGE STYLES
+   ========================================================================== */
+
+.institutional-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.institutional-filter-toggle:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.institutional-filter-toggle.active-institutional {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.institutional-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse-dot 1.5s infinite;
+}
+
+/* Cash Preservation Mode Banner */
+.cash-preservation-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.06);
+}
+
+.cash-preservation-icon-box {
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cash-preservation-content {
+  flex: 1;
+}
+
+.cash-preservation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cash-preservation-title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #065f46;
+  letter-spacing: -0.01em;
+}
+
+.cash-preservation-chip {
+  background: #059669;
+  color: #ffffff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.cash-preservation-desc {
+  font-size: 0.825rem;
+  color: #166534;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.cash-preservation-quote {
+  background: #dcfce7;
+  border-left: 3px solid #059669;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: #065f46;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 0.85rem;
+}
+
+.view-secondary-btn {
+  background: #ffffff;
+  border: 1px solid #86efac;
+  color: #047857;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.view-secondary-btn:hover {
+  background: #dcfce7;
+}
+
+/* 5-Layer Confluence Bar inside SignalCard */
+.confluence-layers-bar {
+  margin: 0.6rem 0;
+  padding: 0.5rem 0.65rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.confluence-layers-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.confluence-layers-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.confluence-score-pill {
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.confluence-score-pill.edge-70 {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.confluence-score-pill.edge-sub {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.confluence-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.layer-chip {
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.layer-chip.passed {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.layer-chip.failed {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  opacity: 0.75;
 }

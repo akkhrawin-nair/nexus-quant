@@ -110,13 +110,13 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
     }
   }, [accountBalance, calcEntry, calcStopLoss, calcTakeProfit, riskTolerancePct])
 
-  // Filter signals for Grade A+ Confluence setups
+  // Filter signals strictly for Grade A+ Confluence setups (70%+ Institutional Edge)
   const gradeASignals = useMemo(() => {
     return signals
       .filter(s => {
-        const isGolden = s.golden_opportunity?.is_golden_opportunity || s.is_golden
-        const score = s.golden_opportunity?.conviction_score || (s.confidence_score ? s.confidence_score * 100 : 70)
-        return isGolden || score >= 75
+        const is70 = s.golden_opportunity?.is_70_plus_edge
+        const score = s.golden_opportunity?.confluence_score || s.golden_opportunity?.conviction_score || 0
+        return is70 || score >= 85
       })
       .slice(0, 5)
   }, [signals])
@@ -371,6 +371,45 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
                       1 : {sizingAnalysis.rrRatio} {parseFloat(sizingAnalysis.rrRatio) >= 2.5 ? '✅ EXCELLENT' : '⚠️ LOW R/R'}
                     </span>
                   </div>
+
+                  {/* Institutional 5-Layer Confluence Edge Verification */}
+                  {(() => {
+                    const activeSig = signals.find(s => s.symbol === calcSymbol)
+                    const layers = activeSig?.golden_opportunity?.layers || []
+                    const is70 = activeSig?.golden_opportunity?.is_70_plus_edge
+                    if (!layers.length) return null
+                    return (
+                      <div style={{ marginTop: '0.6rem', padding: '0.5rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                          <span style={{ fontSize: '0.66rem', fontWeight: 800, color: '#0f172a' }}>
+                            {is70 ? '🎯 70%+ STATISTICAL EDGE' : '⚡ 5-LAYER CONFLUENCE AUDIT'}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 900, color: is70 ? '#15803d' : '#64748b' }}>
+                            {activeSig.golden_opportunity.passed_count}/5 PASSED
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                          {layers.map(l => (
+                            <span
+                              key={l.id}
+                              style={{
+                                fontSize: '0.6rem',
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                background: l.passed ? '#ecfdf5' : '#fef2f2',
+                                color: l.passed ? '#047857' : '#b91c1c',
+                                border: `1px solid ${l.passed ? '#a7f3d0' : '#fecaca'}`,
+                                fontWeight: 700
+                              }}
+                              title={`${l.name}: ${l.detail}`}
+                            >
+                              {l.passed ? '✓' : '✕'} {l.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Real Broker Order Copy & Live Tracking Buttons */}
@@ -419,26 +458,50 @@ R/R RATIO: 1 : ${sizingAnalysis.rrRatio}`
             <div className="hub-card">
               <div className="card-header">
                 <Flame size={16} className="card-icon gold" />
-                <span className="card-title">GRADE A+ HIGH-CONVICTION OPPORTUNITIES</span>
+                <span className="card-title">GRADE A+ HIGH-CONVICTION (70%+ STATISTICAL EDGE)</span>
               </div>
 
               <div className="hub-signals-list">
                 {gradeASignals.length === 0 ? (
                   <p className="no-signals-text">
-                    No Grade A+ setups currently meeting strict confluence criteria. Wait patiently for market alignment.
+                    🛡️ No Grade A+ setups currently meeting strict 70%+ confluence criteria. Wait patiently for market alignment.
                   </p>
                 ) : (
                   gradeASignals.map(sig => {
                     const price = parseFloat(sig.current_price || sig.close_price || 0)
-                    const score = sig.golden_opportunity?.conviction_score || 82
+                    const score = sig.golden_opportunity?.conviction_score || 85
+                    const layers = sig.golden_opportunity?.layers || []
                     return (
                       <div key={sig.symbol} className="hub-signal-item">
                         <div className="sig-info">
                           <div className="sig-sym-row">
                             <span className="sig-symbol">{sig.symbol}</span>
-                            <span className="sig-badge">A+ CONFLUENCE ({score}%)</span>
+                            <span className="sig-badge" style={{ background: '#dcfce7', color: '#15803d', borderColor: '#86efac' }}>
+                              70%+ EDGE ({score}%)
+                            </span>
                           </div>
                           <span className="sig-price">${price.toFixed(2)} • {sig.asset_type || 'Stock'}</span>
+                          {layers.length > 0 && (
+                            <div style={{ display: 'flex', gap: '3px', marginTop: '4px', flexWrap: 'wrap' }}>
+                              {layers.map(l => (
+                                <span
+                                  key={l.id}
+                                  style={{
+                                    fontSize: '0.58rem',
+                                    padding: '1px 4px',
+                                    borderRadius: '3px',
+                                    background: l.passed ? '#ecfdf5' : '#fef2f2',
+                                    color: l.passed ? '#047857' : '#b91c1c',
+                                    border: `1px solid ${l.passed ? '#a7f3d0' : '#fecaca'}`,
+                                    fontWeight: 700
+                                  }}
+                                  title={`${l.name}: ${l.detail}`}
+                                >
+                                  {l.passed ? '✓' : '✕'} {l.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="sig-actions">
                           <button

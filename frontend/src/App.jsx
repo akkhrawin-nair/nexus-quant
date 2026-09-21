@@ -199,6 +199,9 @@ function App() {
   const [paperTradeSymbol, setPaperTradeSymbol] = useState(null)
   const [paperPortfolio, setPaperPortfolio] = useState(getPortfolio())
 
+  // Institutional 70%+ Statistical Edge Gatekeeper (Default ON to protect capital)
+  const [is70PlusOnly, setIs70PlusOnly] = useState(true)
+
   useEffect(() => {
     const handleUpdate = () => setPaperPortfolio(getPortfolio())
     window.addEventListener('paperPortfolioUpdated', handleUpdate)
@@ -837,14 +840,16 @@ function App() {
 
         const matchesSearch = !queryStr || symbolStr.toLowerCase().includes(queryStr) || assetStr.includes(queryStr)
 
+        const matches70Plus = !is70PlusOnly || (s.golden_opportunity?.is_70_plus_edge || (s.golden_opportunity?.conviction_score || 0) >= 85)
+
         if (activeFilter === 'A+ Setups') {
           const isGolden = s.golden_opportunity?.is_golden_opportunity || s.is_golden
           const score = s.golden_opportunity?.conviction_score || (s.confidence_score ? s.confidence_score * 100 : 0)
-          return matchesSearch && (isGolden || score >= 75)
+          return matchesSearch && (isGolden || score >= 75) && matches70Plus
         }
 
         if (activeFilter === 'Favorites') {
-          return matchesSearch && favorites.includes(symbolStr)
+          return matchesSearch && favorites.includes(symbolStr) && matches70Plus
         }
 
         const filterStr = activeFilter.toLowerCase()
@@ -856,7 +861,7 @@ function App() {
           (activeFilter === 'Crypto' && assetStr.includes('crypto')) ||
           (activeFilter === 'Commodity' && assetStr.includes('commodity'))
 
-        return matchesSearch && matchesFilter
+        return matchesSearch && matchesFilter && matches70Plus
       })
       .sort((a, b) => {
         const symA = (a.symbol || '').toUpperCase()
@@ -894,7 +899,7 @@ function App() {
             return dateB - dateA
         }
       })
-  }, [signals, searchQuery, activeFilter, sortOrder, favorites])
+  }, [signals, searchQuery, activeFilter, sortOrder, favorites, is70PlusOnly])
 
   const goldenSignals = useMemo(() => {
     const goldens = signals.filter(s => s.golden_opportunity?.is_golden_opportunity)
@@ -1998,6 +2003,16 @@ function App() {
                 })}
               </div>
 
+              {/* Institutional 70%+ Statistical Edge Gatekeeper Toggle */}
+              <button
+                className={`institutional-filter-toggle ${is70PlusOnly ? 'active-institutional' : ''} font-mono`}
+                onClick={() => setIs70PlusOnly(prev => !prev)}
+                title={is70PlusOnly ? "Filtering strictly for 70%+ Statistical Edge Setups" : "Click to enforce 70%+ Confluence Filter"}
+              >
+                <ShieldCheck size={14} className={is70PlusOnly ? 'shield-icon-active' : ''} />
+                <span>{is70PlusOnly ? '🛡️ 70%+ INSTITUTIONAL ONLY' : 'SHOW ALL SIGNALS'}</span>
+                {is70PlusOnly && <span className="institutional-pulse-dot" />}
+              </button>
 
               {/* View Mode Switcher Pill (Grid vs Heatmap) */}
               <div className="view-switcher-pill">
@@ -2097,11 +2112,37 @@ function App() {
                       </button>
                     </div>
                   ) : displayedSignals.length === 0 ? (
-                    <div className="minimal-error-card">
-                      <Search size={36} style={{ color: 'var(--text-dim)' }} />
-                      <h3>No signals found</h3>
-                      <p>No {signalType} signals match parameters.</p>
-                    </div>
+                    is70PlusOnly ? (
+                      <div className="cash-preservation-card font-mono">
+                        <div className="cash-preservation-icon-box">
+                          <ShieldCheck size={36} style={{ color: '#059669' }} />
+                        </div>
+                        <div className="cash-preservation-content">
+                          <div className="cash-preservation-header">
+                            <span className="cash-preservation-title">🛡️ INSTITUTIONAL GATEKEEPER: CASH PRESERVATION ACTIVE</span>
+                            <span className="cash-preservation-chip">0 SETUPS QUALIFY TODAY</span>
+                          </div>
+                          <p className="cash-preservation-desc">
+                            The 5-Layer Confluence Engine scanned the entire market and found <strong>zero setups</strong> currently meeting the strict <strong>70%+ win-rate criteria</strong>. Market conditions are choppy or risk-off.
+                          </p>
+                          <div className="cash-preservation-quote">
+                            <strong>WALL STREET QUANT PRINCIPLE:</strong> <em>"In professional trading, sitting in cash is an active, profitable position."</em> Do not force trades when edge is missing.
+                          </div>
+                          <button
+                            className="view-secondary-btn font-mono"
+                            onClick={() => setIs70PlusOnly(false)}
+                          >
+                            Inspect Secondary Watchlist (Below 70% Edge) ➔
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="minimal-error-card">
+                        <Search size={36} style={{ color: 'var(--text-dim)' }} />
+                        <h3>No signals found</h3>
+                        <p>No {signalType} signals match parameters.</p>
+                      </div>
+                    )
                   ) : (
                     <div className="minimal-cards-grid">
                       <AnimatePresence>

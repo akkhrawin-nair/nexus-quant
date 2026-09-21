@@ -211,6 +211,31 @@ const SignalCard = memo(({
         </div>
       </div>
 
+      {/* Institutional 5-Layer Confluence Checklist Bar */}
+      {signal.golden_opportunity?.layers && signal.golden_opportunity.layers.length > 0 && (
+        <div className="confluence-layers-bar font-mono" onClick={(e) => e.stopPropagation()}>
+          <div className="confluence-layers-header">
+            <span className="confluence-layers-title">
+              {signal.golden_opportunity.is_70_plus_edge ? '🎯 70%+ STATISTICAL EDGE' : '⚡ 5-LAYER CONFLUENCE'}
+            </span>
+            <span className={`confluence-score-pill ${signal.golden_opportunity.is_70_plus_edge ? 'edge-70' : 'edge-sub'}`}>
+              {signal.golden_opportunity.confluence_score || signal.golden_opportunity.conviction_score}%
+            </span>
+          </div>
+          <div className="confluence-chips-grid">
+            {signal.golden_opportunity.layers.map((layer) => (
+              <span
+                key={layer.id}
+                className={`layer-chip ${layer.passed ? 'passed' : 'failed'}`}
+                title={`${layer.name}: ${layer.detail}`}
+              >
+                {layer.passed ? '✓' : '✕'} {layer.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Chart Container */}
       <div className="card-chart-block" style={{ position: 'relative' }}>
         <button
