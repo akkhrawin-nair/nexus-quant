@@ -85,7 +85,6 @@ import AIBrainFusionModal from './components/AIBrainFusionModal'
 import MicroRecoveryHub from './components/MicroRecoveryHub'
 import { getPortfolio, calculatePortfolioStats } from './utils/paperTradingStorage'
 import BreakoutAlertsBar from './components/BreakoutAlertsBar'
-import ViralStudioModal from './components/ViralShortsStudio/ViralStudioModal'
 
 
 
@@ -250,10 +249,6 @@ function App() {
   // AI Confluence Brain (Fastest News + Quantitative Technicals Dual-Engine) State
   const [isBrainOpen, setIsBrainOpen] = useState(false)
   const [brainSymbol, setBrainSymbol] = useState('QQQ')
-
-  // VIRAL-AGENT Content-to-Cash Short-Form Video Factory State
-  const [isViralStudioOpen, setIsViralStudioOpen] = useState(false)
-  const [appView, setAppView] = useState('quant') // 'quant' | 'viral_studio'
 
   // Bilingual English/Thai (EN/TH) i18n State
   const [lang, setLang] = useState(() => localStorage.getItem('kappa_lang') || 'en')
@@ -1128,19 +1123,6 @@ function App() {
 
   const navTabs = ['Dashboard', 'Signals', 'Volatility']
 
-  // Full-Screen Dedicated VIRAL-AGENT Content-to-Cash Video Factory Mode
-  if (appView === 'viral_studio') {
-    return (
-      <ViralStudioModal
-        isOpen={true}
-        isFullScreen={true}
-        onClose={() => setAppView('quant')}
-        onSwitchToQuant={() => setAppView('quant')}
-        API_BASE_URL={API_BASE_URL}
-      />
-    )
-  }
-
   return (
     <motion.div
       className="minimal-app-root"
@@ -1290,12 +1272,7 @@ function App() {
         }}
       />
 
-      {/* VIRAL-AGENT Content-to-Cash Video Factory Studio Modal */}
-      <ViralStudioModal
-        isOpen={isViralStudioOpen}
-        onClose={() => setIsViralStudioOpen(false)}
-        API_BASE_URL={API_BASE_URL}
-      />
+
 
 
 
@@ -1444,25 +1421,6 @@ function App() {
             <span>{lang === 'en' ? 'EN' : 'TH'}</span>
           </button>
 
-          {/* VIRAL-AGENT Video Factory Launcher Button */}
-          <button
-            className="sync-now-btn font-mono"
-            onClick={() => setIsViralStudioOpen(true)}
-            style={{
-              background: 'linear-gradient(135deg, #0284c7, #6366f1)',
-              color: '#ffffff',
-              borderColor: '#4f46e5',
-              fontWeight: 800,
-              gap: '0.4rem',
-              boxShadow: '0 2px 6px rgba(99, 102, 241, 0.25)'
-            }}
-            title="Open VIRAL-AGENT Faceless Short-Form Video & Content-to-Cash Studio"
-          >
-            <Video size={13} style={{ color: '#ffffff' }} />
-            <span>Viral Video Factory</span>
-            <span style={{ fontSize: '0.62rem', background: '#eab308', color: '#000', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>$$$</span>
-          </button>
-
           {/* Institutional Quant Tools Dropdown Popover */}
           <div className="quant-tools-dropdown-container" ref={toolsDropdownRef}>
             <button
@@ -1489,16 +1447,6 @@ function App() {
                   </div>
 
                   <div className="popover-grid">
-                    <button className="popover-item" onClick={() => { setIsViralStudioOpen(true); setIsToolsDropdownOpen(false); }} style={{ background: '#f5f3ff', borderColor: '#c4b5fd' }}>
-                      <div className="item-icon-wrapper" style={{ background: '#ede9fe', color: '#7c3aed' }}>
-                        <Video size={15} />
-                      </div>
-                      <div className="item-text">
-                        <span className="item-title">Viral Video Factory</span>
-                        <span className="item-desc">60 FPS kinetic subtitles, neural TTS & video export</span>
-                      </div>
-                      <span className="item-badge" style={{ background: '#7c3aed', color: '#fff' }}>VIRAL</span>
-                    </button>
                     <button className="popover-item" onClick={() => { setIsRecoveryHubOpen(true); setIsToolsDropdownOpen(false); }} style={{ background: '#fffbeb', borderColor: '#fcd34d' }}>
                       <div className="item-icon-wrapper" style={{ background: '#fef3c7', color: '#d97706' }}>
                         <Target size={15} />
