@@ -1657,31 +1657,59 @@ function App() {
                 </div>
               </div>
 
-              <button
-                className={`hero-copy-btn ${heroCopied ? 'copied' : ''}`}
-                onClick={() => {
-                  const sym = activeGoldenSignal.symbol
-                  const text = `${sym} | Entry: ${epStr} | TP1 (+${tradePlan.tp1Pct}%): ${tp1Str} (Lock 50% & Stop to Breakeven) | TP2 (+${tradePlan.tp2Pct}%): ${tp2Str} | Stop (-${tradePlan.slPct}%): ${slStr} | Horizon: ${tradePlan.duration}`
-                  if (navigator.clipboard) {
-                    navigator.clipboard.writeText(text)
-                  }
-                  setHeroCopied(true)
-                  setTimeout(() => setHeroCopied(false), 2500)
-                }}
-                title="Copy 1-click broker order setup"
-              >
-                {heroCopied ? (
-                  <>
-                    <Check size={14} />
-                    <span>✓ COPIED BRACKET PLAN!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    <span>COPY BRACKET PLAN (TP1 + TP2 + STOP)</span>
-                  </>
-                )}
-              </button>
+              <div className="hero-action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  className="hero-trade-btn"
+                  onClick={() => {
+                    setPaperTradeSymbol(activeGoldenSignal.symbol)
+                    setIsPaperTradingOpen(true)
+                  }}
+                  title={`Execute simulated paper trade on ${activeGoldenSignal.symbol}`}
+                  style={{
+                    background: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '0.5rem 1.15rem',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                  }}
+                >
+                  <Zap size={14} />
+                  <span>SIMULATE TRADE (BUY)</span>
+                </button>
+
+                <button
+                  className={`hero-copy-btn ${heroCopied ? 'copied' : ''}`}
+                  onClick={() => {
+                    const sym = activeGoldenSignal.symbol
+                    const text = `${sym} | Entry: ${epStr} | TP1 (+${tradePlan.tp1Pct}%): ${tp1Str} (Lock 50% & Stop to Breakeven) | TP2 (+${tradePlan.tp2Pct}%): ${tp2Str} | Stop (-${tradePlan.slPct}%): ${slStr} | Horizon: ${tradePlan.duration}`
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(text)
+                    }
+                    setHeroCopied(true)
+                    setTimeout(() => setHeroCopied(false), 2500)
+                  }}
+                  title="Copy 1-click broker order setup"
+                >
+                  {heroCopied ? (
+                    <>
+                      <Check size={14} />
+                      <span>✓ COPIED BRACKET PLAN!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>COPY BRACKET PLAN</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )
         })()}
@@ -2070,6 +2098,10 @@ function App() {
                               onOpenBrain={(sym) => {
                                 setBrainSymbol(sym || 'QQQ')
                                 setIsBrainOpen(true)
+                              }}
+                              onOpenPaperTrade={(sym) => {
+                                setPaperTradeSymbol(sym)
+                                setIsPaperTradingOpen(true)
                               }}
                             />
                           )

@@ -92,7 +92,8 @@ const SignalCard = memo(({
   candleSeries,
   trendData,
   priceFlash,
-  onOpenBrain
+  onOpenBrain,
+  onOpenPaperTrade
 }) => {
   const macdVal = parseFloat(signal.macd) || 0
   const macdSigVal = parseFloat(signal.macd_signal) || 0
@@ -259,24 +260,40 @@ const SignalCard = memo(({
             <span className="plan-sub-tip">{tradePlan.riskRewardRatio}:1 R/R</span>
           </div>
         </div>
-        <button
-          type="button"
-          className={`copy-order-btn ${copied ? 'copied' : ''}`}
-          onClick={handleCopySetup}
-          title="Click to copy exact Entry, TP1, TP2, and Stop-Loss to paste into your broker"
-        >
-          {copied ? (
-            <>
-              <Check size={12} />
-              <span>COPIED BRACKET PLAN!</span>
-            </>
-          ) : (
-            <>
-              <Copy size={12} />
-              <span>COPY BRACKET PLAN (TP1 + TP2 + STOP)</span>
-            </>
-          )}
-        </button>
+
+        <div className="wealth-plan-actions" style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '5px' }}>
+          <button
+            type="button"
+            className="trade-execute-btn"
+            onClick={(e) => {
+              e.stopPropagation()
+              onOpenPaperTrade?.(signal.symbol)
+            }}
+            title={`Open Trade Desk & Execute Simulated Paper Trade for ${signal.symbol}`}
+          >
+            <Zap size={12} />
+            <span>TRADE / BUY</span>
+          </button>
+
+          <button
+            type="button"
+            className={`copy-order-btn ${copied ? 'copied' : ''}`}
+            onClick={handleCopySetup}
+            title="Click to copy exact Entry, TP1, TP2, and Stop-Loss to paste into your broker"
+          >
+            {copied ? (
+              <>
+                <Check size={12} />
+                <span>COPIED!</span>
+              </>
+            ) : (
+              <>
+                <Copy size={12} />
+                <span>COPY PLAN</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Signal Insight Pill */}
