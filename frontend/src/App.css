@@ -14699,32 +14699,58 @@ a[title*="TradingView"], #tv-attr-logo, .tv-lightweight-charts-watermark {
   text-align: center;
 }
 
+.wealth-plan-row.four-col {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+@media (max-width: 640px) {
+  .wealth-plan-row.four-col {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+}
+
 .plan-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   background: #ffffff;
-  padding: 4px 6px;
+  padding: 4px 5px;
   border-radius: 6px;
   border: 1px solid #f1f5f9;
 }
 
 .plan-lbl {
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   font-weight: 700;
   color: #64748b;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
 }
 
 .plan-val {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 800;
   font-family: var(--font-mono);
 }
 
-.plan-item.profit .plan-val {
+.plan-sub-tip {
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.plan-item.profit .plan-val,
+.plan-item.tp1 .plan-val {
   color: #059669;
+}
+
+.plan-item.tp2 .plan-val {
+  color: #0284c7;
 }
 
 .plan-item.loss .plan-val {

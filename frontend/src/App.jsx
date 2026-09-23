@@ -78,7 +78,7 @@ import PortfolioOptimizerModal from './components/PortfolioOptimizerModal'
 import TradingAcademyModal from './components/TradingAcademyModal'
 import DailyTradePlaybook from './components/DailyTradePlaybook'
 import SignalCard from './components/SignalCard'
-import { getRiskRatingMeta } from './utils/riskUtils'
+import { getRiskRatingMeta, calculateDynamicTradePlan } from './utils/riskUtils'
 import AIMentorModal from './components/AIMentorModal'
 import PaperTradingModal from './components/PaperTradingModal'
 import AIBrainFusionModal from './components/AIBrainFusionModal'
@@ -1615,11 +1615,11 @@ function App() {
         {/* Featured #1 Top Opportunity */}
         {activeGoldenSignal && (() => {
           const ep = parseFloat(activeGoldenSignal.current_price || activeGoldenSignal.close_price || 0)
-          const tp = ep * 1.15
-          const sl = ep * 0.925
+          const tradePlan = calculateDynamicTradePlan(activeGoldenSignal, ep)
           const epStr = formatCurrency(ep)
-          const tpStr = formatCurrency(tp)
-          const slStr = formatCurrency(sl)
+          const tp1Str = formatCurrency(tradePlan.tp1Val)
+          const tp2Str = formatCurrency(tradePlan.tp2Val)
+          const slStr = formatCurrency(tradePlan.slVal)
 
           return (
             <div className="daily-wealth-pick-card">
@@ -1630,21 +1630,30 @@ function App() {
               </div>
 
               <div className="pick-targets">
-                <div className="target-chip">
-                  <span className="target-lbl">🎯 TAKE PROFIT (+15%)</span>
-                  <span className="target-val profit">{tpStr}</span>
+                <div className="target-chip" title="Target 1: Sell 50% shares and move stop to breakeven ($0 risk)">
+                  <span className="target-lbl">🎯 TP1 (+{tradePlan.tp1Pct}%)</span>
+                  <span className="target-val profit">{tp1Str}</span>
+                  <span style={{ fontSize: '0.6rem', color: '#64748b' }}>De-Risk 50%</span>
                 </div>
 
-                <div className="target-chip">
-                  <span className="target-lbl">🛡️ SAFETY STOP (-7.5%)</span>
+                <div className="target-chip" title="Target 2: Full swing expansion target for remaining 50% shares">
+                  <span className="target-lbl">🚀 TP2 (+{tradePlan.tp2Pct}%)</span>
+                  <span className="target-val profit" style={{ color: '#0284c7' }}>{tp2Str}</span>
+                  <span style={{ fontSize: '0.6rem', color: '#64748b' }}>Full Runner</span>
+                </div>
+
+                <div className="target-chip" title="Tight technical risk invalidation">
+                  <span className="target-lbl">🛡️ STOP (-{tradePlan.slPct}%)</span>
                   <span className="target-val loss">{slStr}</span>
+                  <span style={{ fontSize: '0.6rem', color: '#64748b' }}>{tradePlan.riskRewardRatio}:1 R/R</span>
                 </div>
 
-                <div className="target-chip">
-                  <span className="target-lbl">🔒 72H EARNINGS</span>
+                <div className="target-chip" title="Holding window & Earnings check">
+                  <span className="target-lbl">⏱️ {tradePlan.duration}</span>
                   <span className="target-val" style={{ color: activeGoldenSignal.earnings_blackout ? '#b91c1c' : '#0284c7' }}>
-                    {activeGoldenSignal.earnings_blackout ? '⛔ High Risk' : '✓ Safe'}
+                    {activeGoldenSignal.earnings_blackout ? '⛔ ER Blackout' : '✓ Safe Window'}
                   </span>
+                  <span style={{ fontSize: '0.6rem', color: '#64748b' }}>Target Horizon</span>
                 </div>
               </div>
 
@@ -1652,7 +1661,7 @@ function App() {
                 className={`hero-copy-btn ${heroCopied ? 'copied' : ''}`}
                 onClick={() => {
                   const sym = activeGoldenSignal.symbol
-                  const text = `${sym} | Entry: ${epStr} | Target (+15%): ${tpStr} | Stop (-7.5%): ${slStr}`
+                  const text = `${sym} | Entry: ${epStr} | TP1 (+${tradePlan.tp1Pct}%): ${tp1Str} (Lock 50% & Stop to Breakeven) | TP2 (+${tradePlan.tp2Pct}%): ${tp2Str} | Stop (-${tradePlan.slPct}%): ${slStr} | Horizon: ${tradePlan.duration}`
                   if (navigator.clipboard) {
                     navigator.clipboard.writeText(text)
                   }
@@ -1664,12 +1673,12 @@ function App() {
                 {heroCopied ? (
                   <>
                     <Check size={14} />
-                    <span>✓ COPIED TO CLIPBOARD!</span>
+                    <span>✓ COPIED BRACKET PLAN!</span>
                   </>
                 ) : (
                   <>
                     <Copy size={14} />
-                    <span>COPY 1-CLICK BROKER ORDER</span>
+                    <span>COPY BRACKET PLAN (TP1 + TP2 + STOP)</span>
                   </>
                 )}
               </button>

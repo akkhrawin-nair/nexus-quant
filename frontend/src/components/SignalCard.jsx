@@ -24,7 +24,7 @@ import {
   Area
 } from 'recharts'
 import TradingChart from './TradingChart'
-import { getRiskRatingMeta } from '../utils/riskUtils'
+import { getRiskRatingMeta, calculateDynamicTradePlan } from '../utils/riskUtils'
 
 const formatCurrency = (val) => {
   const num = parseFloat(val)
@@ -124,14 +124,14 @@ const SignalCard = memo(({
   const riskMeta = getRiskRatingMeta(signal.symbol, signal.asset_type, lang)
   const [copied, setCopied] = useState(false)
   const entryPrice = livePriceVal || 100
-  const takeProfitVal = entryPrice * 1.15
-  const stopLossVal = entryPrice * 0.925
-  const takeProfitStr = formatCurrency(takeProfitVal)
-  const stopLossStr = formatCurrency(stopLossVal)
+  const tradePlan = calculateDynamicTradePlan(signal, entryPrice)
+  const tp1Str = formatCurrency(tradePlan.tp1Val)
+  const tp2Str = formatCurrency(tradePlan.tp2Val)
+  const slStr = formatCurrency(tradePlan.slVal)
 
   const handleCopySetup = (e) => {
     e.stopPropagation()
-    const text = `${signal.symbol} | Entry: ${formatCurrency(entryPrice)} | Target (+15%): ${takeProfitStr} | Stop (-7.5%): ${stopLossStr}`
+    const text = `${signal.symbol} | Entry: ${formatCurrency(entryPrice)} | TP1 (+${tradePlan.tp1Pct}%): ${tp1Str} (Lock 50% & Stop to Breakeven) | TP2 (+${tradePlan.tp2Pct}%): ${tp2Str} | Stop (-${tradePlan.slPct}%): ${slStr} | Horizon: ${tradePlan.duration}`
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text)
     }
@@ -233,39 +233,47 @@ const SignalCard = memo(({
         </div>
       </div>
 
-      {/* 1-Click Streamlined Wealth Game Plan */}
+      {/* Dynamic Multi-Tier Technical Game Plan */}
       <div className="wealth-plan-box font-mono" onClick={(e) => e.stopPropagation()}>
-        <div className="wealth-plan-row">
-          <div className="plan-item profit">
-            <span className="plan-lbl">🎯 TARGET (+15%)</span>
-            <span className="plan-val">{takeProfitStr}</span>
+        <div className="wealth-plan-row four-col">
+          <div className="plan-item tp1" title="Target 1: Sell 50% shares and move Stop-Loss to Breakeven ($0 risk)">
+            <span className="plan-lbl">🎯 TP1 (+{tradePlan.tp1Pct}%)</span>
+            <span className="plan-val">{tp1Str}</span>
+            <span className="plan-sub-tip">De-Risk 50%</span>
           </div>
-          <div className="plan-item loss">
-            <span className="plan-lbl">🛡️ SAFETY STOP</span>
-            <span className="plan-val">{stopLossStr}</span>
+          <div className="plan-item tp2" title="Target 2: Full swing expansion target for remaining 50% runner">
+            <span className="plan-lbl">🚀 TP2 (+{tradePlan.tp2Pct}%)</span>
+            <span className="plan-val">{tp2Str}</span>
+            <span className="plan-sub-tip">Full Runner</span>
           </div>
-          <div className="plan-item shield">
-            <span className="plan-lbl">🔒 72H EARNINGS</span>
+          <div className="plan-item loss" title="Strict technical invalidation level">
+            <span className="plan-lbl">🛡️ STOP (-{tradePlan.slPct}%)</span>
+            <span className="plan-val">{slStr}</span>
+            <span className="plan-sub-tip">Max Invalidation</span>
+          </div>
+          <div className="plan-item shield" title="Holding window & Earnings safety check">
+            <span className="plan-lbl">⏱️ {tradePlan.duration}</span>
             <span className={`plan-val ${signal.earnings_blackout ? 'blackout' : 'safe'}`}>
-              {signal.earnings_blackout ? '⛔ Risk' : '✓ Safe'}
+              {signal.earnings_blackout ? '⛔ Risk' : '✓ Safe ER'}
             </span>
+            <span className="plan-sub-tip">{tradePlan.riskRewardRatio}:1 R/R</span>
           </div>
         </div>
         <button
           type="button"
           className={`copy-order-btn ${copied ? 'copied' : ''}`}
           onClick={handleCopySetup}
-          title="Click to copy exact Entry, Target, and Stop-Loss to paste into your broker"
+          title="Click to copy exact Entry, TP1, TP2, and Stop-Loss to paste into your broker"
         >
           {copied ? (
             <>
               <Check size={12} />
-              <span>COPIED TO CLIPBOARD!</span>
+              <span>COPIED BRACKET PLAN!</span>
             </>
           ) : (
             <>
               <Copy size={12} />
-              <span>COPY BROKER BRACKET ORDER</span>
+              <span>COPY BRACKET PLAN (TP1 + TP2 + STOP)</span>
             </>
           )}
         </button>

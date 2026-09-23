@@ -80,3 +80,70 @@ export function getRiskRatingMeta(symbol = '', assetType = '', lang = 'en') {
     description: lang === 'th' ? descTh : descEn
   }
 }
+
+/**
+ * Calculates asset-specific, volatility-adjusted quantitative trade targets & stops:
+ * - TP1: Dynamic Quick Win & De-Risk Target (+2.0% to +6.5%) -> Scale out 50% & move stop to breakeven ($0 risk)
+ * - TP2: Full Technical Swing Expansion Target (+4.5% to +16.0%) -> Let remaining 50% ride
+ * - Stop Loss: Tight technical invalidation stop (-1.8% to -4.5%) instead of a blind -7.5%
+ * - Horizon: Estimated holding duration before stale trade cutoff (e.g. 3 - 5 days)
+ */
+export function calculateDynamicTradePlan(signal = {}, entryPrice = 0) {
+  const ep = Number(entryPrice) || Number(signal.current_price) || Number(signal.close_price) || 100
+  const sym = (signal.symbol || '').toUpperCase().trim()
+  const assetType = (signal.asset_type || '').toLowerCase()
+  const golden = signal.golden_opportunity || {}
+
+  const isCrypto = assetType.includes('crypto') || sym.includes('-USD') || ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE'].includes(sym)
+  const isHighBeta = ['NVDA', 'TSLA', 'MSTR', 'PLTR', 'SMCI', 'AMD', 'COIN', 'ARM'].includes(sym)
+  const isEtfOrCommodity = assetType.includes('etf') || assetType.includes('commodity') || ['SPY', 'QQQ', 'DIA', 'IWM', 'TLT', 'GLD', 'SLV', 'UNG', 'USO'].includes(sym)
+
+  let tp2Pct = 8.5
+  let slPct = 2.8
+  let duration = golden.holding_duration || '3 - 5 Days'
+
+  if (golden.target_pct && golden.target_pct > 0) {
+    tp2Pct = Number(golden.target_pct)
+  } else if (isCrypto) {
+    tp2Pct = 13.5
+    slPct = 4.2
+    duration = '2 - 5 Days'
+  } else if (isHighBeta) {
+    tp2Pct = 9.8
+    slPct = 3.2
+    duration = '3 - 6 Days'
+  } else if (isEtfOrCommodity) {
+    tp2Pct = 4.8
+    slPct = 1.8
+    duration = '5 - 10 Days'
+  } else {
+    tp2Pct = 7.5
+    slPct = 2.6
+    duration = '3 - 5 Days'
+  }
+
+  if (golden.stop_pct && golden.stop_pct > 0) {
+    slPct = Number(golden.stop_pct)
+  }
+
+  // TP1 is the scale-out target (50% position), minimum 2.0%
+  const tp1Pct = Number(Math.max(2.0, (tp2Pct * 0.5)).toFixed(1))
+  tp2Pct = Number(tp2Pct.toFixed(1))
+  slPct = Number(slPct.toFixed(1))
+
+  const tp1Val = ep * (1 + tp1Pct / 100)
+  const tp2Val = ep * (1 + tp2Pct / 100)
+  const slVal = ep * (1 - slPct / 100)
+
+  return {
+    entryPrice: ep,
+    tp1Pct,
+    tp2Pct,
+    slPct,
+    tp1Val,
+    tp2Val,
+    slVal,
+    duration,
+    riskRewardRatio: (tp2Pct / (slPct || 1)).toFixed(1)
+  }
+}
