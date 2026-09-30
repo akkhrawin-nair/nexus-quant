@@ -41,6 +41,7 @@ DEFAULT_TARGET_TICKERS = {
     'AMD': 'Stock',
     'PLTR': 'Stock',
     'COIN': 'Stock',
+    'EOSE': 'Stock',
 
     # Indices & Commodities
     'SPY': 'Stock',

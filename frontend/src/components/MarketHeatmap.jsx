@@ -18,6 +18,7 @@ const TICKER_WEIGHTS = {
   'PLTR': 1.8,
   'GLD': 2.0,
   'USO': 1.8,
+  'EOSE': 1.6,
 }
 
 const getAssetCategory = (type = '', symbol = '') => {

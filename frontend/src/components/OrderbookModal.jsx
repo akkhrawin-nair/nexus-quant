@@ -131,8 +131,12 @@ export default function OrderbookModal({
   }, [orderbook])
 
   const tickerOptions = useMemo(() => {
-    return ['NVDA', 'BTC-USD', 'QQQ', 'SPY', 'TSLA', 'GLD', 'USO', 'ETH-USD', 'SOL-USD', 'AAPL', 'MSFT', 'AMD', 'META']
-  }, [])
+    const list = ['NVDA', 'BTC-USD', 'QQQ', 'SPY', 'TSLA', 'GLD', 'USO', 'ETH-USD', 'SOL-USD', 'AAPL', 'MSFT', 'AMD', 'META', 'EOSE', 'AMZN', 'GOOGL', 'PLTR', 'COIN', 'NFLX', 'ASML', 'ARM', 'AVGO']
+    if (symbol && !list.includes(symbol)) {
+      return [symbol, ...list]
+    }
+    return list
+  }, [symbol])
 
   if (!isOpen) return null
 

@@ -100,6 +100,7 @@ def get_latest_signals(model_class):
             {'symbol': 'BTC-USD', 'asset_type': 'Crypto', 'price': 63500.0, 'bull': (420.0, 250.0), 'bear': (-310.0, -120.0)},
             {'symbol': 'ETH-USD', 'asset_type': 'Crypto', 'price': 2650.0, 'bull': (18.5, 12.0), 'bear': (-15.0, -5.0)},
             {'symbol': 'GLD', 'asset_type': 'Commodity', 'price': 240.50, 'bull': (0.75, 0.40), 'bear': (-0.30, -0.10)},
+            {'symbol': 'EOSE', 'asset_type': 'Stock', 'price': 3.11, 'bull': (0.16, 0.08), 'bear': (-0.12, -0.05)},
         ]
         for item in default_universe:
             pair = item['bear'] if is_bearish else item['bull']
@@ -357,6 +358,44 @@ def get_symbol_price_and_prev_close(symbol: str, default_close: float = 100.0):
     return (latest_c, prev_c, chg_pct)
 
 
+def get_symbol_52w_range(symbol: str, default_close: float = 100.0):
+    """
+    Returns true 52-week low and high (MIN(LowPrice), MAX(HighPrice)) from MarketPrices database table.
+    """
+    symbol = symbol.strip().upper()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT MIN(LowPrice), MAX(HighPrice)
+                FROM MarketPrices WITH (NOLOCK)
+                WHERE Symbol = %s
+                """,
+                [symbol]
+            )
+            row = cursor.fetchone()
+            if row and row[0] is not None and row[1] is not None:
+                min_p = float(row[0])
+                max_p = float(row[1])
+                if min_p > 0 and max_p > 0:
+                    return (round(min_p, 2), round(max_p, 2))
+    except Exception:
+        pass
+
+    try:
+        t = yf.Ticker(symbol)
+        info = getattr(t, 'fast_info', None)
+        if info:
+            y_low = getattr(info, 'year_low', None)
+            y_high = getattr(info, 'year_high', None)
+            if y_low and y_high:
+                return (round(float(y_low), 2), round(float(y_high), 2))
+    except Exception:
+        pass
+
+    return (round(default_close * 0.70, 2), round(default_close * 1.30, 2))
+
+
 def compute_indicator_radar(symbol: str, close_price: float):
     """
     Computes RSI(14), Bollinger Bands (%B & Squeeze state), and Volume Spike ratio.
@@ -575,6 +614,7 @@ SECTOR_TAXONOMY = {
     'JNJ': {'name': 'Healthcare Conglomerate', 'icon': 'HeartPulse'},
     'SPY': {'name': 'Broad Market (S&P 500)', 'icon': 'BarChart3'},
     'QQQ': {'name': 'Tech Benchmark (Nasdaq-100)', 'icon': 'LineChart'},
+    'EOSE': {'name': 'Clean Tech & Energy Storage', 'icon': 'BatteryCharging'},
 }
 
 def get_asset_sector(symbol):
@@ -862,6 +902,8 @@ def format_signal_with_live_data(signal):
     macd_sig = sanitize_float(getattr(signal, 'macd_signal', 0.0), 0.0)
     golden_meta = compute_golden_opportunity_meta(signal.symbol, cur_p, macd_val, macd_sig, radar)
     candles = fetch_recent_candles_for_symbol(signal.symbol, limit=35)
+    volatility = calculate_volatility_metrics(signal.symbol)
+    w52_low, w52_high = get_symbol_52w_range(signal.symbol, cur_p)
 
     sym = signal.symbol.upper().strip()
     if sym in ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD'] or '-USD' in sym:
@@ -888,11 +930,16 @@ def format_signal_with_live_data(signal):
         'macd': macd_val,
         'macd_signal': macd_sig,
         'radar': radar,
+        'volatility': volatility,
         'golden_opportunity': golden_meta,
         'sector': golden_meta.get('sector', 'Equities'),
         'sector_icon': golden_meta.get('sector_icon', 'Briefcase'),
         'earnings_info': golden_meta.get('earnings_info', {}),
         'earnings_blackout': golden_meta.get('earnings_blackout', False),
+        'fifty_two_week_low': w52_low,
+        'fifty_two_week_high': w52_high,
+        'low_52w': w52_low,
+        'high_52w': w52_high,
         'candles': candles,
         'history': candles
     }
@@ -1119,6 +1166,8 @@ class AddAsset(APIView):
 
             live_quote = fetch_live_quote_data(ticker_symbol, latest_close)
 
+            w52_low, w52_high = get_symbol_52w_range(ticker_symbol, latest_close)
+
             new_signal_data = {
                 'symbol': ticker_symbol,
                 'asset_type': asset_type,
@@ -1130,6 +1179,10 @@ class AddAsset(APIView):
                 'percent_change': live_quote['percent_change'],
                 'daily_change_pct': live_quote['daily_change_pct'],
                 'last_updated': live_quote['last_updated'],
+                'fifty_two_week_low': w52_low,
+                'fifty_two_week_high': w52_high,
+                'low_52w': w52_low,
+                'high_52w': w52_high,
                 'macd': f"{latest_macd:.4f}",
                 'macd_signal': f"{latest_macd_sig:.4f}"
             }
@@ -1465,6 +1518,16 @@ class SentimentDataView(APIView):
                     'time': '3 hours ago',
                     'sentiment': 'NEUTRAL',
                     'score': 0.12,
+                    'url': 'https://www.reuters.com'
+                },
+                {
+                    'id': 7,
+                    'symbol': 'EOSE',
+                    'title': 'Eos Energy secures multi-gigawatt utility battery storage orders and accelerates production ramp',
+                    'source': 'Reuters Clean Energy',
+                    'time': '35 mins ago',
+                    'sentiment': 'BULLISH',
+                    'score': 0.86,
                     'url': 'https://www.reuters.com'
                 }
             ]

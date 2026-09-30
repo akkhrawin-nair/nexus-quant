@@ -41,6 +41,15 @@ export default function MarketSentimentBar({ onOpenModal, API_BASE_URL = 'http:/
         time: '1 hour ago',
         sentiment: 'BEARISH',
         score: -0.64
+      },
+      {
+        id: 5,
+        symbol: 'EOSE',
+        title: 'Eos Energy secures multi-gigawatt utility battery storage orders and accelerates production ramp',
+        source: 'Reuters Clean Energy',
+        time: '35 mins ago',
+        sentiment: 'BULLISH',
+        score: 0.86
       }
     ]
   })

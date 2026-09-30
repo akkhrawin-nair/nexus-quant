@@ -28,6 +28,7 @@ const SUGGESTED_TICKERS = [
   { symbol: 'LLY', name: 'Eli Lilly', type: 'US Equity' },
   { symbol: 'HOOD', name: 'Robinhood Markets', type: 'US Equity' },
   { symbol: 'TLT', name: '20+ Yr Treasury ETF', type: 'ETF' },
+  { symbol: 'EOSE', name: 'Eos Energy Enterprises', type: 'US Equity' },
 ]
 
 export default function AddTickerModal({ isOpen, onClose, onAddTicker, isSubmitting = false }) {

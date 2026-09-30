@@ -21,7 +21,7 @@ import {
   Search
 } from 'lucide-react'
 
-const QUICK_TICKERS = ['QQQ', 'NVDA', 'AAPL', 'TSLA', 'SPY', 'BTC-USD', 'MSFT', 'AMZN']
+const QUICK_TICKERS = ['QQQ', 'NVDA', 'AAPL', 'TSLA', 'SPY', 'BTC-USD', 'MSFT', 'AMZN', 'EOSE']
 
 export default function AIBrainFusionModal({
   isOpen,

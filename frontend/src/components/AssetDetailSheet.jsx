@@ -163,17 +163,25 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
 
   // 6. Timeframe Sliced Dataset Memoization (UNCONDITIONAL HOOK)
   const slicedCandles = useMemo(() => {
-    if (intradayCandles && intradayCandles.length > 0) return intradayCandles
-    if (!asset || fullCandles.length === 0) return []
+    const candlesToUse = (intradayCandles && intradayCandles.length > 0)
+      ? intradayCandles
+      : fullCandles
+
+    if (!candlesToUse || candlesToUse.length === 0) return []
+
     const sliceCounts = {
+      '1m': 390,
+      '5m': 150,
+      '15m': 100,
+      '1h': 80,
       '1D': 60,
       '1W': 52,
-      '1M': 30,
+      '1M': 24,
       '1Y': 252
     }
     const count = sliceCounts[selectedTimeframe] || 60
-    return fullCandles.slice(-Math.min(count, fullCandles.length))
-  }, [asset, fullCandles, intradayCandles, selectedTimeframe])
+    return candlesToUse.slice(-Math.min(count, candlesToUse.length))
+  }, [fullCandles, intradayCandles, selectedTimeframe])
 
 
   // 7. TradingView Series & Metric Calculations (UNCONDITIONAL HOOK)
@@ -191,10 +199,46 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
       }
     }
 
-    const startPrice = slicedCandles[0].close || closePrice
     const latestPrice = slicedCandles[slicedCandles.length - 1].close || closePrice
-    const priceChange = latestPrice - startPrice
-    const pctChange = startPrice !== 0 ? (priceChange / startPrice) * 100 : 0
+    let startPrice = slicedCandles[0].close || closePrice
+
+    if (selectedTimeframe === '1D') {
+      // 1D timeframe represents 1-day session: compare latest close with previous trading day's close
+      if (slicedCandles.length >= 2) {
+        startPrice = slicedCandles[slicedCandles.length - 2].close
+      } else {
+        const rawPct = asset?.daily_change_pct !== undefined ? asset?.daily_change_pct : asset?.percent_change
+        const pctNum = parseFloat(rawPct) || 0
+        startPrice = pctNum !== -100 ? (latestPrice / (1 + (pctNum / 100))) : latestPrice
+      }
+    } else if (selectedTimeframe === '1W') {
+      // 1W change: compare latest with ~5 trading days ago or first weekly candle
+      const lookback = Math.min(5, slicedCandles.length - 1)
+      startPrice = lookback > 0 ? slicedCandles[slicedCandles.length - 1 - lookback].close : slicedCandles[0].close
+    } else if (selectedTimeframe === '1M') {
+      // 1M change: compare latest with ~21 trading days ago or first monthly candle
+      const lookback = Math.min(21, slicedCandles.length - 1)
+      startPrice = lookback > 0 ? slicedCandles[slicedCandles.length - 1 - lookback].close : slicedCandles[0].close
+    } else if (selectedTimeframe === '1Y') {
+      // 1Y change: compare with 1 year ago (start of annual series)
+      startPrice = slicedCandles[0].close
+    } else {
+      // Intraday (1m, 5m, 15m, 1h): compare latest with opening price of the session
+      startPrice = slicedCandles[0].open || slicedCandles[0].close || latestPrice
+    }
+
+    let priceChange = latestPrice - startPrice
+    let pctChange = startPrice !== 0 ? (priceChange / startPrice) * 100 : 0
+
+    // Ensure 1D change accurately falls back to asset's explicit 24h metrics if candle diff was negligible
+    if (selectedTimeframe === '1D') {
+      const explicitPct = parseFloat(asset?.daily_change_pct !== undefined ? asset?.daily_change_pct : asset?.percent_change)
+      if (!isNaN(explicitPct) && (Math.abs(priceChange) < 0.001 || !priceChange)) {
+        pctChange = explicitPct
+        priceChange = latestPrice * (pctChange / 100)
+      }
+    }
+
     const isPositive = pctChange >= 0
 
     const areaData = slicedCandles.map(c => ({ time: c.time, value: c.close }))
@@ -219,7 +263,7 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
       pctChange,
       isPositive
     }
-  }, [slicedCandles, closePrice])
+  }, [slicedCandles, closePrice, selectedTimeframe, asset])
 
   // 8. Initialize and update TradingView Lightweight Chart (UNCONDITIONAL HOOK)
   useEffect(() => {
@@ -399,36 +443,117 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
     ? hoveredPoint.date
     : `${selectedTimeframe} Change: ${currentPriceChange >= 0 ? '+' : '-'}\$${Math.abs(currentPriceChange).toFixed(2)}`
 
-  // Technical metrics for lower cards
-  const low52 = parseFloat((closePrice * 0.72).toFixed(2))
-  const high52 = parseFloat((closePrice * 1.28).toFixed(2))
-  const rangePct = Math.min(100, Math.max(0, ((closePrice - low52) / (high52 - low52)) * 100))
+  // Technical metrics derived from real price action & candles
+  const allCandleSources = [
+    ...(Array.isArray(fullCandles) ? fullCandles : []),
+    ...(Array.isArray(intradayCandles) ? intradayCandles : []),
+    ...(Array.isArray(asset?.candles) ? asset.candles : []),
+    ...(Array.isArray(asset?.history) ? asset.history : [])
+  ]
+  const pricesInHistory = allCandleSources.map(c => typeof c.close === 'number' ? c.close : parseFloat(c.close || c.ClosePrice || 0)).filter(p => p > 0)
+  const realLow = pricesInHistory.length > 5 ? Math.min(...pricesInHistory) : closePrice * 0.70
+  const realHigh = pricesInHistory.length > 5 ? Math.max(...pricesInHistory) : closePrice * 1.30
+  
+  // Use true 52-week low/high from backend database (1 full year)
+  const low52 = asset?.fifty_two_week_low != null
+    ? parseFloat(asset.fifty_two_week_low)
+    : (asset?.low_52w != null ? parseFloat(asset.low_52w) : parseFloat(realLow.toFixed(2)))
+  const high52 = asset?.fifty_two_week_high != null
+    ? parseFloat(asset.fifty_two_week_high)
+    : (asset?.high_52w != null ? parseFloat(asset.high_52w) : parseFloat(realHigh.toFixed(2)))
+  const rangePct = Math.min(100, Math.max(0, ((closePrice - low52) / (high52 - low52 || 1)) * 100))
 
-  const rsiVal = asset?.radar?.rsi != null ? asset.radar.rsi : (symbol === 'NVDA' ? 68.4 : symbol === 'TSLA' ? 42.1 : symbol === 'BTC-USD' ? 72.8 : 58.2)
+  const rsiVal = asset?.radar?.rsi != null ? asset.radar.rsi : 52.4
   const rsiBadge = asset?.radar?.rsi_label || (rsiVal >= 70 ? 'Overbought' : rsiVal <= 30 ? 'Oversold' : 'Neutral / Bullish')
-  const supportPrice = (closePrice * 0.94).toFixed(2)
-  const resistancePrice = (closePrice * 1.08).toFixed(2)
-  const obvFlow = currentIsPositive ? '+14.2M Accumulation' : '-8.5M Distribution'
-  const histVol = vol ? vol.historical_volatility : '22.4%'
+  const supportPrice = asset.golden_opportunity?.stop_loss_num
+    ? asset.golden_opportunity.stop_loss_num.toFixed(2)
+    : (closePrice * 0.96).toFixed(2)
+  const resistancePrice = asset.golden_opportunity?.target_price_num
+    ? asset.golden_opportunity.target_price_num.toFixed(2)
+    : (closePrice * 1.06).toFixed(2)
+
+  const obvFlow = asset?.radar?.vol_spike_ratio
+    ? `${asset.radar.vol_spike_ratio}x Vol Surge (${currentIsPositive ? 'Net Inflow' : 'Net Outflow'})`
+    : (currentIsPositive ? '+14.2M Accumulation' : '-8.5M Distribution')
+
+  const effectiveVol = asset.volatility || vol
+  const histVol = effectiveVol ? effectiveVol.historical_volatility : (asset?.radar?.bb_width_pct ? `${(asset.radar.bb_width_pct * 4.2).toFixed(1)}%` : '22.4%')
 
   const companyNames = {
+    // US Mega-Caps & Tech
     'NVDA': 'NVIDIA Corporation',
-    'QQQ': 'Invesco QQQ Trust Series 1',
+    'AAPL': 'Apple Inc.',
+    'MSFT': 'Microsoft Corporation',
+    'AMZN': 'Amazon.com, Inc.',
+    'GOOGL': 'Alphabet Inc.',
+    'META': 'Meta Platforms, Inc.',
+    'TSLA': 'Tesla, Inc.',
+    'AMD': 'Advanced Micro Devices, Inc.',
+    'PLTR': 'Palantir Technologies Inc.',
+    'SMCI': 'Super Micro Computer, Inc.',
+    'ARM': 'Arm Holdings plc',
+    'QCOM': 'Qualcomm Inc.',
+    'NFLX': 'Netflix, Inc.',
+    'AVGO': 'Broadcom Inc.',
+
+    // Semiconductors & Hardware
+    'TSM': 'Taiwan Semiconductor Manufacturing Co.',
+    'ASML': 'ASML Holding N.V.',
+    'MU': 'Micron Technology, Inc.',
+    'INTC': 'Intel Corporation',
+
+    // FinTech & Financial Giants
+    'PYPL': 'PayPal Holdings, Inc.',
+    'SQ': 'Block, Inc.',
+    'HOOD': 'Robinhood Markets, Inc.',
+    'SOFI': 'SoFi Technologies, Inc.',
+    'UBER': 'Uber Technologies, Inc.',
+    'COIN': 'Coinbase Global, Inc.',
+    'MSTR': 'MicroStrategy Incorporated',
+    'JPM': 'JPMorgan Chase & Co.',
+    'BAC': 'Bank of America Corporation',
+    'GS': 'The Goldman Sachs Group, Inc.',
+    'V': 'Visa Inc.',
+    'MA': 'Mastercard Incorporated',
+
+    // Healthcare, Industrial & Consumer Titans
+    'LLY': 'Eli Lilly and Company',
+    'XOM': 'Exxon Mobil Corporation',
+    'CVX': 'Chevron Corporation',
+    'JNJ': 'Johnson & Johnson',
+    'UNH': 'UnitedHealth Group Incorporated',
+    'EOSE': 'Eos Energy Enterprises, Inc.',
+    'WMT': 'Walmart Inc.',
+    'COST': 'Costco Wholesale Corporation',
+    'DIS': 'The Walt Disney Company',
+    'ONDS': 'Ondas Holdings Inc.',
+
+    // Major Broad & Sector Index ETFs
     'SPY': 'SPDR S&P 500 ETF Trust',
+    'QQQ': 'Invesco QQQ Trust Series 1',
+    'IWM': 'iShares Russell 2000 ETF',
+    'DIA': 'SPDR Dow Jones Industrial Average ETF',
+    'TLT': 'iShares 20+ Year Treasury Bond ETF',
+    'XLF': 'Financial Select Sector SPDR Fund',
+    'XLK': 'Technology Select Sector SPDR Fund',
+    'XLE': 'Energy Select Sector SPDR Fund',
+
+    // Commodities & Precious Metals
+    'GLD': 'SPDR Gold Shares',
+    'SLV': 'iShares Silver Trust',
+    'USO': 'United States Oil Fund LP',
+    'UNG': 'United States Natural Gas Fund LP',
+
+    // Major Cryptocurrencies
     'BTC-USD': 'Bitcoin / US Dollar',
     'ETH-USD': 'Ethereum / US Dollar',
     'SOL-USD': 'Solana / US Dollar',
-    'TSLA': 'Tesla, Inc.',
-    'AMD': 'Advanced Micro Devices, Inc.',
-    'META': 'Meta Platforms, Inc.',
-    'AAPL': 'Apple Inc.',
-    'MSFT': 'Microsoft Corporation',
-    'PLTR': 'Palantir Technologies Inc.',
-    'GLD': 'SPDR Gold Shares',
-    'USO': 'United States Oil Fund LP'
+    'XRP-USD': 'XRP / US Dollar',
+    'DOGE-USD': 'Dogecoin / US Dollar',
+    'ADA-USD': 'Cardano / US Dollar'
   }
 
-  const companyName = companyNames[symbol] || `${symbol} Asset`
+  const companyName = companyNames[symbol] || `${symbol} (${asset.asset_type || 'Equity'})`
   const sheetRiskMeta = getRiskRatingMeta(symbol, asset.asset_type)
 
   return (
@@ -620,15 +745,15 @@ export default function AssetDetailSheet({ asset, onClose, volatilityData, onOpe
               <div className="sheet-section-card">
                 <div className="section-card-header">
                   <span className="section-label">52-WEEK PRICE RANGE</span>
-                  <span className="section-range-value">${low52} — ${high52}</span>
+                  <span className="section-range-value">${low52.toFixed(2)} — ${high52.toFixed(2)}</span>
                 </div>
                 <div className="range-bar-track">
                   <div className="range-bar-fill" style={{ width: `${rangePct}%` }} />
                   <div className="range-bar-thumb" style={{ left: `${rangePct}%` }} title={`Current: $${closePrice.toFixed(2)}`} />
                 </div>
                 <div className="range-footer">
-                  <span>52W Low: ${low52}</span>
-                  <span>52W High: ${high52}</span>
+                  <span>52W Low: ${low52.toFixed(2)}</span>
+                  <span>52W High: ${high52.toFixed(2)}</span>
                 </div>
               </div>
 

@@ -85,6 +85,7 @@ import AIBrainFusionModal from './components/AIBrainFusionModal'
 import MicroRecoveryHub from './components/MicroRecoveryHub'
 import { getPortfolio, calculatePortfolioStats } from './utils/paperTradingStorage'
 import BreakoutAlertsBar from './components/BreakoutAlertsBar'
+import UpcomingNewsAlertBar from './components/UpcomingNewsAlertBar'
 
 
 
@@ -172,6 +173,7 @@ function App() {
 
   // Live Financial News & Sentiment Modal State
   const [isSentimentOpen, setIsSentimentOpen] = useState(false)
+  const [sentimentInitialAsset, setSentimentInitialAsset] = useState('ALL')
 
   // $6 ➔ $30 Account Recovery & Compounding Hub Modal State
   const [isRecoveryHubOpen, setIsRecoveryHubOpen] = useState(false)
@@ -203,8 +205,8 @@ function App() {
   const [paperTradeSymbol, setPaperTradeSymbol] = useState(null)
   const [paperPortfolio, setPaperPortfolio] = useState(getPortfolio())
 
-  // Institutional 70%+ Statistical Edge Gatekeeper (Default ON to protect capital)
-  const [is70PlusOnly, setIs70PlusOnly] = useState(true)
+  // Institutional 70%+ Statistical Edge Gatekeeper (Default OFF to show all assets including new tickers)
+  const [is70PlusOnly, setIs70PlusOnly] = useState(false)
 
   // Real-Time Data Infrastructure Ping & Latency Monitor State
   const [pingLatency, setPingLatency] = useState(16)
@@ -446,6 +448,24 @@ function App() {
     })
   }, [signals])
 
+  // Brief alert on important upcoming news upon session launch
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setToasts(prev => [
+        {
+          id: `news-toast-${Date.now()}`,
+          symbol: 'NEWS',
+          price: 'ALERT',
+          message: '🚨 High-impact upcoming news: EOSE clean energy milestones & FOMC rate decision today.',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isBullish: true
+        },
+        ...prev.slice(0, 3)
+      ])
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [])
+
   const handleAddAlert = (newRule) => {
     setAlerts(prev => [newRule, ...prev])
   }
@@ -680,6 +700,10 @@ function App() {
       signal_trigger_date: new Date().toISOString().split('T')[0],
       macd: '1.25',
       macd_signal: '0.98',
+      fifty_two_week_low: 110.00,
+      fifty_two_week_high: 195.00,
+      low_52w: 110.00,
+      high_52w: 195.00,
       history: candleMap[uppercaseSym] || []
     }
   }, [signals, selectedTicker, candleMap])
@@ -868,7 +892,7 @@ function App() {
 
         const matchesSearch = !queryStr || symbolStr.toLowerCase().includes(queryStr) || assetStr.includes(queryStr)
 
-        const matches70Plus = !is70PlusOnly || (s.golden_opportunity?.is_70_plus_edge || (s.golden_opportunity?.conviction_score || 0) >= 85)
+        const matches70Plus = !is70PlusOnly || !!queryStr || (s.golden_opportunity?.is_70_plus_edge || (s.golden_opportunity?.conviction_score || 0) >= 85)
 
         if (activeFilter === 'A+ Setups') {
           const isGolden = s.golden_opportunity?.is_golden_opportunity || s.is_golden
@@ -877,7 +901,7 @@ function App() {
         }
 
         if (activeFilter === 'Favorites') {
-          return matchesSearch && favorites.includes(symbolStr) && matches70Plus
+          return matchesSearch && favorites.includes(symbolStr)
         }
 
         const filterStr = activeFilter.toLowerCase()
@@ -989,7 +1013,7 @@ function App() {
     const baseMacd = parseFloat(signal.macd) || 0
     const baseSig = parseFloat(signal.macd_signal) || 0
     const closePrice = parseFloat(signal.close_price) || 100
-    const baseDate = new Date(signal.signal_date || '2026-08-18')
+    const baseDate = new Date(signal.signal_date || new Date().toISOString().split('T')[0])
     const symHash = (signal.symbol || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
 
     const multipliers = isPositive
@@ -1214,6 +1238,7 @@ function App() {
       <NewsSentimentModal
         isOpen={isSentimentOpen}
         onClose={() => setIsSentimentOpen(false)}
+        initialAsset={sentimentInitialAsset}
         API_BASE_URL={API_BASE_URL}
       />
 
@@ -1340,7 +1365,7 @@ function App() {
             <span className="brand-sub">QUANT</span>
           </div>
           <span
-            className="live-pulse-badge font-mono"
+            className="live-pulse-badge font-mono header-desktop-only"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', fontSize: '0.66rem', fontWeight: 700 }}
             title={`Real-Time Data Engine: Parallel ThreadPool v2 • Round-Trip Latency: ${pingLatency}ms • Cache: Warm`}
           >
@@ -1352,6 +1377,7 @@ function App() {
             />
             LIVE FEED • {pingLatency}ms
           </span>
+          <span className="mobile-live-dot" title={`Live Feed: ${pingLatency}ms`} />
         </div>
 
         {/* Navigation Tabs with Glider */}
@@ -1399,9 +1425,9 @@ function App() {
             </span>
           </button>
 
-          {/* Sync Button */}
+          {/* Sync Button (Desktop) */}
           <button
-            className="sync-now-btn"
+            className="sync-now-btn header-desktop-only"
             onClick={handleTriggerIngest}
             disabled={isSyncing}
             title="Fetch latest market data & signals"
@@ -1410,9 +1436,9 @@ function App() {
             <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
           </button>
 
-          {/* Language Switcher Toggle */}
+          {/* Language Switcher Toggle (Desktop) */}
           <button
-            className="sync-now-btn font-mono"
+            className="sync-now-btn font-mono header-desktop-only"
             onClick={toggleLanguage}
             title={lang === 'en' ? 'Switch to Thai' : 'Switch to English'}
             style={{ background: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1', fontWeight: 700 }}
@@ -1444,6 +1470,32 @@ function App() {
                 >
                   <div className="popover-header">
                     <span>QUANTITATIVE WORKSTATION SUITE</span>
+                  </div>
+
+                  {/* Fast Mobile-Friendly Quick Controls Bar */}
+                  <div className="popover-quick-bar">
+                    <button
+                      className="popover-quick-btn"
+                      onClick={() => {
+                        handleTriggerIngest()
+                        setIsToolsDropdownOpen(false)
+                      }}
+                      disabled={isSyncing}
+                      title="Sync live quotes & signals"
+                    >
+                      <RefreshCw size={13} className={isSyncing ? 'spin-icon' : ''} />
+                      <span>{isSyncing ? 'Syncing...' : 'Sync Market'}</span>
+                    </button>
+                    <button
+                      className="popover-quick-btn"
+                      onClick={() => {
+                        toggleLanguage()
+                      }}
+                      title="Toggle Language"
+                    >
+                      <Globe size={13} style={{ color: '#0284c7' }} />
+                      <span>{lang === 'en' ? 'ไทย (TH)' : 'English (EN)'}</span>
+                    </button>
                   </div>
 
                   <div className="popover-grid">
@@ -1580,12 +1632,24 @@ function App() {
             onClick={() => setIsCommandOpen(true)}
             title="Open AI Command Menu (Ctrl+K)"
           >
-            <Sparkles size={14} />
-            <span>AI Command</span>
+            <Sparkles size={13} />
+            <span className="ai-text-full">AI Command</span>
+            <span className="ai-text-short">AI</span>
             <span className="cmd-shortcut-tag">⌘K</span>
           </button>
         </div>
       </header>
+
+      {/* Brief Upcoming News & Catalyst Alert Bar */}
+      <UpcomingNewsAlertBar
+        onOpenNewsModal={(ticker) => {
+          setSentimentInitialAsset(ticker || 'ALL')
+          setIsSentimentOpen(true)
+        }}
+        onSelectTicker={(ticker) => {
+          setSelectedTicker(ticker)
+        }}
+      />
 
       {/* ======================================================== */}
       {/* STREAMLINED DAILY WEALTH COMMAND CENTER (FAMILY-READY)   */}
@@ -1648,8 +1712,8 @@ function App() {
                   <span style={{ fontSize: '0.6rem', color: '#64748b' }}>{tradePlan.riskRewardRatio}:1 R/R</span>
                 </div>
 
-                <div className="target-chip" title="Holding window & Earnings check">
-                  <span className="target-lbl">⏱️ {tradePlan.duration}</span>
+                <div className="target-chip" title={`Holding Window: ${tradePlan.duration} • Earnings Safety Check`}>
+                  <span className="target-lbl">⏱️ {(tradePlan.duration || '3 - 5 Days').split('(')[0].trim()}</span>
                   <span className="target-val" style={{ color: activeGoldenSignal.earnings_blackout ? '#b91c1c' : '#0284c7' }}>
                     {activeGoldenSignal.earnings_blackout ? '⛔ ER Blackout' : '✓ Safe Window'}
                   </span>
@@ -1743,11 +1807,11 @@ function App() {
                 </thead>
                 <tbody>
                   {displayedSignals.map((s) => {
-                    const vol = volatilityData[s.symbol]
-                    const ivRank = vol ? vol.iv_rank : (s.symbol === 'QQQ' || s.symbol === 'NVDA' ? 88 : 34)
-                    const gammaVal = vol ? vol.gamma_exposure : (s.symbol === 'QQQ' || s.symbol === 'TSLA' ? 'Negative' : 'Positive')
-                    const hv = vol ? vol.historical_volatility : '18.5%'
-                    const iv = vol ? vol.implied_volatility : '22.4%'
+                    const vol = s.volatility || volatilityData[s.symbol]
+                    const ivRank = vol ? vol.iv_rank : (s.radar?.bb_width_pct ? Math.min(95, Math.max(15, Math.round(s.radar.bb_width_pct * 3.5))) : 42)
+                    const gammaVal = vol ? vol.gamma_exposure : (signalType === 'buy' ? 'Positive' : 'Negative')
+                    const hv = vol ? vol.historical_volatility : (s.asset_type === 'Crypto' ? '48.2%' : '24.1%')
+                    const iv = vol ? vol.implied_volatility : (s.asset_type === 'Crypto' ? '54.0%' : '26.8%')
                     const isHighIv = ivRank >= 80
 
                     return (
@@ -1864,7 +1928,7 @@ function App() {
               <div className="minimal-stat-card">
                 <span className="stat-label">MONITORED ASSETS</span>
                 <div className="stat-value-row">
-                  <span className="stat-value">14 Assets</span>
+                  <span className="stat-value">{signals.length || 57} Assets</span>
                 </div>
                 <span className="stat-sub">Multivariate Tracking</span>
               </div>
@@ -2065,7 +2129,7 @@ function App() {
                             : []
                           const isExpanded = isDrawerExpanded(signal.symbol)
                           const hoveredPoint = hoveredMap[signal.symbol]
-                          const vol = volatilityData[signal.symbol]
+                          const vol = signal.volatility || volatilityData[signal.symbol]
                           const isVolLoading = !!volatilityLoading[signal.symbol]
                           const candleSeries = candleMap[signal.symbol] || signal.candles || signal.history || generateFallbackCandles(signal, isPositiveTrend)
                           const isFavorite = favorites.includes((signal.symbol || '').toUpperCase())

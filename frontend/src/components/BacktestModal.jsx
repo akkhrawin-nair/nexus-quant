@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 
 // Default Fallback Asset Choices
-const DEFAULT_ASSETS = ['BTC-USD', 'NVDA', 'QQQ', 'SPY', 'TSLA', 'AMD', 'META', 'AAPL', 'MSFT', 'SOL-USD', 'ETH-USD', 'USO', 'GLD', 'PLTR', 'AMZN', 'GOOGL', 'NFLX']
+const DEFAULT_ASSETS = ['BTC-USD', 'NVDA', 'QQQ', 'SPY', 'TSLA', 'AMD', 'META', 'AAPL', 'MSFT', 'SOL-USD', 'ETH-USD', 'USO', 'GLD', 'PLTR', 'AMZN', 'GOOGL', 'NFLX', 'EOSE']
 
 export default function BacktestModal({
   isOpen = false,
@@ -82,7 +82,7 @@ export default function BacktestModal({
     const priceSeeds = {
       'BTC-USD': 96420, 'NVDA': 219.74, 'QQQ': 485.30, 'SPY': 560.10, 'TSLA': 242.80,
       'AMD': 155.60, 'META': 522.40, 'AAPL': 224.30, 'MSFT': 448.90, 'AMZN': 185.00,
-      'GOOGL': 175.00, 'SOL-USD': 188.40, 'ETH-USD': 3850.25, 'USO': 78.20, 'GLD': 240.50, 'PLTR': 32.50
+      'GOOGL': 175.00, 'SOL-USD': 188.40, 'ETH-USD': 3850.25, 'USO': 78.20, 'GLD': 240.50, 'PLTR': 32.50, 'EOSE': 3.11
     }
 
     const currentSignal = (signals || []).find(s => (s.symbol || '').toUpperCase() === (symbol || '').toUpperCase())

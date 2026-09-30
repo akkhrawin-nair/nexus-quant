@@ -112,11 +112,12 @@ const SignalCard = memo(({
     ? hoveredPoint.date
     : (signal.last_updated ? `Live ${signal.last_updated}` : `Signal: ${signal.signal_trigger_date || signal.signal_date}`)
 
-  const vol = volatilityData ? volatilityData[signal.symbol] : null
-  const ivRankVal = vol ? vol.iv_rank : (signal.symbol === 'QQQ' || signal.symbol === 'TSLA' || signal.symbol === 'NVDA' ? 88 : 34)
-  const pcRatio = vol ? vol.pc_ratio : (signal.symbol === 'QQQ' ? '1.15' : '0.92')
-  const impliedMove = vol ? vol.implied_move : (signal.symbol === 'QQQ' ? '±$4.50' : '±$12.30')
-  const gammaVal = vol ? vol.gamma_exposure : (signal.symbol === 'QQQ' || signal.symbol === 'TSLA' || !isBuy ? 'Negative' : 'Positive')
+  const vol = signal.volatility || (volatilityData ? volatilityData[signal.symbol] : null)
+  const ivRankVal = vol ? vol.iv_rank : (signal.radar?.bb_width_pct ? Math.min(95, Math.max(15, Math.round(signal.radar.bb_width_pct * 3.5))) : 42)
+  const pcRatio = vol ? vol.pc_ratio : (isBuy ? '0.85' : '1.15')
+  const defaultMovePct = signal.asset_type === 'Crypto' ? 0.055 : (signal.asset_type === 'Commodity' ? 0.018 : 0.032)
+  const impliedMove = vol ? vol.implied_move : `±$${((livePriceVal || 10) * defaultMovePct).toFixed(2)}`
+  const gammaVal = vol ? vol.gamma_exposure : (isBuy ? 'Positive' : 'Negative')
 
   const isHighIv = vol ? vol.is_high_iv : ivRankVal >= 80
   const isLowIv = vol ? vol.is_low_iv : ivRankVal <= 20
@@ -129,6 +130,7 @@ const SignalCard = memo(({
   const tp1Str = formatCurrency(tradePlan.tp1Val)
   const tp2Str = formatCurrency(tradePlan.tp2Val)
   const slStr = formatCurrency(tradePlan.slVal)
+  const cleanDuration = (tradePlan.duration || '3 - 5 Days').split('(')[0].trim()
 
   const handleCopySetup = (e) => {
     e.stopPropagation()
@@ -252,8 +254,8 @@ const SignalCard = memo(({
             <span className="plan-val">{slStr}</span>
             <span className="plan-sub-tip">Max Invalidation</span>
           </div>
-          <div className="plan-item shield" title="Holding window & Earnings safety check">
-            <span className="plan-lbl">⏱️ {tradePlan.duration}</span>
+          <div className="plan-item shield" title={`Holding Window: ${tradePlan.duration} • Earnings Safety Check`}>
+            <span className="plan-lbl">⏱️ {cleanDuration}</span>
             <span className={`plan-val ${signal.earnings_blackout ? 'blackout' : 'safe'}`}>
               {signal.earnings_blackout ? '⛔ Risk' : '✓ Safe ER'}
             </span>
@@ -511,12 +513,12 @@ const SignalCard = memo(({
 
                 <div className="opt-cell">
                   <span className="opt-label">HIST VOL</span>
-                  <span className="opt-value">{vol ? vol.historical_volatility : '18.5%'}</span>
+                  <span className="opt-value">{vol ? vol.historical_volatility : (signal.asset_type === 'Crypto' ? '48.2%' : '24.1%')}</span>
                 </div>
 
                 <div className="opt-cell">
                   <span className="opt-label">IMPLIED VOL</span>
-                  <span className="opt-value">{vol ? vol.implied_volatility : '22.4%'}</span>
+                  <span className="opt-value">{vol ? vol.implied_volatility : (signal.asset_type === 'Crypto' ? '54.0%' : '26.8%')}</span>
                 </div>
 
                 <div className="opt-cell">

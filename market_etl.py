@@ -7,7 +7,8 @@ ASSETS = {
     'NVDA': {'type': 'Stock'},
     'SPY': {'type': 'Stock'},
     'BTC-USD': {'type': 'Crypto'},
-    'GLD': {'type': 'Commodity'}
+    'GLD': {'type': 'Commodity'},
+    'EOSE': {'type': 'Stock'}
 }
 
 # 2. Database Connection

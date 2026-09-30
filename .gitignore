@@ -14,6 +14,7 @@ env/
 
 # Database & runtime files
 *.sqlite3
+*.db
 *.log
 
 # Scripts & temporary binaries (prevents false-positive AV alerts on Windows)

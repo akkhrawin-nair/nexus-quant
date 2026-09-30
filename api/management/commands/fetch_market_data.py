@@ -61,6 +61,7 @@ class Command(BaseCommand):
         'CVX': 'Stock',
         'JNJ': 'Stock',
         'UNH': 'Stock',
+        'EOSE': 'Stock',
 
         # Consumer Titans
         'WMT': 'Stock',

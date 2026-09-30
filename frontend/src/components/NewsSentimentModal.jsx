@@ -15,9 +15,16 @@ import {
 export default function NewsSentimentModal({
   isOpen = false,
   onClose,
+  initialAsset = 'ALL',
   API_BASE_URL = 'http://127.0.0.1:8000'
 }) {
-  const [selectedAsset, setSelectedAsset] = useState('ALL')
+  const [selectedAsset, setSelectedAsset] = useState(initialAsset || 'ALL')
+
+  useEffect(() => {
+    if (isOpen && initialAsset) {
+      setSelectedAsset(initialAsset)
+    }
+  }, [isOpen, initialAsset])
   const [sentimentData, setSentimentData] = useState({
     fear_greed_score: 74,
     fear_greed_label: 'Greed',
@@ -80,6 +87,16 @@ export default function NewsSentimentModal({
         time: '3 hours ago',
         sentiment: 'NEUTRAL',
         score: 0.12,
+        url: 'https://www.reuters.com'
+      },
+      {
+        id: 7,
+        symbol: 'EOSE',
+        title: 'Eos Energy secures multi-gigawatt utility battery storage orders and accelerates production ramp',
+        source: 'Reuters Clean Energy',
+        time: '35 mins ago',
+        sentiment: 'BULLISH',
+        score: 0.86,
         url: 'https://www.reuters.com'
       }
     ]
@@ -175,7 +192,7 @@ export default function NewsSentimentModal({
               {/* Sentiment Summary Bar & Slicer */}
               <div className="news-filter-bar">
                 <div className="filter-pill-group">
-                  {['ALL', 'NVDA', 'BTC-USD', 'QQQ', 'TSLA', 'GLD', 'USO'].map(sym => (
+                  {['ALL', 'NVDA', 'BTC-USD', 'QQQ', 'TSLA', 'GLD', 'USO', 'EOSE'].map(sym => (
                     <button
                       key={sym}
                       className={`filter-pill ${selectedAsset === sym ? 'active' : ''}`}
