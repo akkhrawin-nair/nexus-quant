@@ -19,56 +19,56 @@ import {
 // Curated high-impact upcoming news catalysts & macro events
 export const UPCOMING_NEWS_ALERTS = [
   {
-    id: 'news-eose-1',
-    symbol: 'EOSE',
-    title: 'EOSE // DOE Clean Energy Loan & Multi-Gigawatt Utility Battery Order Milestone Approaching',
-    summary: 'Department of Energy clean energy financing confirmation and utility-scale zinc-hybrid storage expansion ramp.',
-    timeframe: 'Today • 2:30 PM EST',
-    countdown: 'In 45m',
-    impact: 'HIGH IMPACT',
-    impactLevel: 'high', // 'high' | 'extreme' | 'moderate'
-    sentiment: 'BULLISH',
-    source: 'Reuters Clean Energy',
-    actionTicker: 'EOSE'
-  },
-  {
-    id: 'news-fed-2',
-    symbol: 'QQQ / SPY',
-    title: 'MACRO // Federal Reserve FOMC Policy Decision & Powell Press Conference Live Today',
-    summary: 'Interest rate trajectory guidance and balance sheet runoff cadence. Expect rapid volatility spikes across tech equities and bonds.',
-    timeframe: 'Today • 2:00 PM EST',
-    countdown: 'In 1h 15m',
+    id: 'news-tsla-1',
+    symbol: 'TSLA',
+    title: 'TSLA // Tesla Keynote & Next-Gen Autonomous Fleet Reveal Event Today',
+    summary: 'Autonomous driving commercial rollout milestones, Robotaxi network updates, and next-generation roadster reveal.',
+    timeframe: 'Today • 7:00 PM EST',
+    countdown: 'In 4h 30m',
     impact: 'EXTREME IMPACT',
     impactLevel: 'extreme',
     sentiment: 'VOLATILE',
-    source: 'Federal Reserve / Bloomberg',
+    source: 'Benzinga / Tesla IR',
+    actionTicker: 'TSLA'
+  },
+  {
+    id: 'news-cpi-2',
+    symbol: 'QQQ / SPY',
+    title: 'MACRO // US Inflation Prints & Treasury Yield Milestone Shock',
+    summary: 'Bond yields test multi-month resistance following hotter core readings; mega-cap tech valuation pressure in play.',
+    timeframe: 'Live Today • Market Session',
+    countdown: 'Active',
+    impact: 'HIGH IMPACT',
+    impactLevel: 'high',
+    sentiment: 'VOLATILE',
+    source: 'Bloomberg Markets',
     actionTicker: 'QQQ'
   },
   {
-    id: 'news-pce-3',
-    symbol: 'ALL MARKETS',
-    title: 'INFLATION // US Core PCE Price Index Monthly Release Tomorrow Morning',
-    summary: 'The Fed’s primary inflation benchmark. Forecasts consensus expects +0.2% MoM. Critical driver for year-end rate cut probabilities.',
-    timeframe: 'Tomorrow • 8:30 AM EST',
-    countdown: 'Tomorrow',
-    impact: 'HIGH IMPACT',
-    impactLevel: 'high',
-    sentiment: 'NEUTRAL',
-    source: 'Bureau of Economic Analysis',
-    actionTicker: 'SPY'
-  },
-  {
-    id: 'news-nvda-4',
+    id: 'news-nvda-3',
     symbol: 'NVDA / TSM',
-    title: 'TECH // Hyperscaler AI Infrastructure Spending & Blackwell Cluster Deployments Update',
-    summary: 'Cloud hyperscalers release updated capex guidance, affirming sustained multi-billion accelerator demand.',
+    title: 'TECH // Blackwell Cluster Deployments & Hyperscaler Capex Affirmation',
+    summary: 'Cloud hyperscalers maintain multi-billion AI accelerator budgets, sustaining heavy order backlogs across server OEM supply chains.',
     timeframe: 'This Week',
-    countdown: 'In 2 Days',
+    countdown: 'In 1 Day',
     impact: 'HIGH IMPACT',
     impactLevel: 'high',
     sentiment: 'BULLISH',
     source: 'Wall Street Journal Tech',
     actionTicker: 'NVDA'
+  },
+  {
+    id: 'news-btc-4',
+    symbol: 'BTC-USD',
+    title: 'CRYPTO // Bitcoin Defends $81K Support Level Amid Net ETF Flow Rebalancing',
+    summary: 'Institutional digital asset desks note spot consolidation with high volume absorption above macro cycle support.',
+    timeframe: '24/7 Digital Desk',
+    countdown: 'Ongoing',
+    impact: 'HIGH IMPACT',
+    impactLevel: 'high',
+    sentiment: 'BULLISH',
+    source: 'CoinDesk Quantitative',
+    actionTicker: 'BTC-USD'
   }
 ]
 

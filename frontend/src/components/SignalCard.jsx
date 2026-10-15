@@ -12,7 +12,8 @@ import {
   Cpu,
   Check,
   Copy,
-  AlertCircle
+  AlertCircle,
+  Calendar
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -202,6 +203,24 @@ const SignalCard = memo(({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button
+            type="button"
+            className="why-signal-btn font-mono"
+            onClick={(e) => {
+              e.stopPropagation()
+              onOpenBrain?.(signal.symbol)
+            }}
+            title="Open 2-Week Swing Period Analysis & Forward Projection Cone"
+            style={{
+              borderColor: 'rgba(14, 165, 233, 0.4)',
+              color: '#0284c7',
+              background: 'rgba(14, 165, 233, 0.08)'
+            }}
+          >
+            <Calendar size={11} />
+            <span>2W SWING</span>
+          </button>
+
           <button
             type="button"
             className="why-signal-btn font-mono"

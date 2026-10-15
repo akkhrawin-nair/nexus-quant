@@ -86,6 +86,7 @@ import MicroRecoveryHub from './components/MicroRecoveryHub'
 import { getPortfolio, calculatePortfolioStats } from './utils/paperTradingStorage'
 import BreakoutAlertsBar from './components/BreakoutAlertsBar'
 import UpcomingNewsAlertBar from './components/UpcomingNewsAlertBar'
+import TwoWeekSwingStation from './components/TwoWeekSwingStation'
 
 
 
@@ -104,8 +105,8 @@ import UpcomingNewsAlertBar from './components/UpcomingNewsAlertBar'
 
 // Dynamic API Base URL targeting current hostname (localhost / 127.0.0.1)
 const API_BASE_URL = typeof window !== 'undefined'
-  ? `http://${window.location.hostname || '127.0.0.1'}:8000`
-  : 'http://127.0.0.1:8000'
+  ? `http://${window.location.hostname || '127.0.0.1'}:8001`
+  : 'http://127.0.0.1:8001'
 
 // Framer Motion Animation Variants for Fluid Staggering
 const pageVariants = {
@@ -456,7 +457,7 @@ function App() {
           id: `news-toast-${Date.now()}`,
           symbol: 'NEWS',
           price: 'ALERT',
-          message: '🚨 High-impact upcoming news: EOSE clean energy milestones & FOMC rate decision today.',
+          message: '🚨 Live market alerts: TSLA autonomous fleet keynote, US inflation prints, & BTC $81K support test today.',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isBullish: true
         },
@@ -1272,6 +1273,7 @@ function App() {
         onClose={() => setIsRecoveryHubOpen(false)}
         signals={signals}
         paperStats={paperStats}
+        API_BASE_URL={API_BASE_URL}
         onOpenPaperTrade={(sym) => {
           setPaperTradeSymbol(sym)
           setIsPaperTradingOpen(true)
@@ -1411,6 +1413,36 @@ function App() {
         </nav>
 
         <div className="header-right-group">
+          {/* Direct 2-Week Swing Period & AI Confluence Terminal Button */}
+          <button
+            className="brain-nav-trigger-btn font-mono header-desktop-only"
+            onClick={() => {
+              setBrainSymbol(activeGoldenSignal?.symbol || 'QQQ')
+              setIsBrainOpen(true)
+            }}
+            title="Open 2-Week Swing Period Terminal (Technical Graph + News Confluence Engine)"
+            style={{
+              background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%)',
+              border: '1px solid rgba(14, 165, 233, 0.45)',
+              color: '#0284c7',
+              borderRadius: '8px',
+              padding: '0.45rem 0.85rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: 800,
+              fontSize: '0.72rem',
+              cursor: 'pointer',
+              boxShadow: '0 0 12px rgba(14, 165, 233, 0.15)'
+            }}
+          >
+            <Calendar size={13} style={{ color: '#0284c7' }} />
+            <span>2-WEEK SWING TERMINAL</span>
+            <span style={{ fontSize: '0.62rem', background: '#0284c7', color: '#fff', padding: '1px 5px', borderRadius: '4px' }}>
+              14D CONE
+            </span>
+          </button>
+
           {/* Real-Time Live Portfolio Quick Status Badge */}
           <button
             className="paper-portfolio-nav-btn font-mono"
@@ -1749,6 +1781,31 @@ function App() {
                 </button>
 
                 <button
+                  className="hero-brain-btn font-mono"
+                  onClick={() => {
+                    setBrainSymbol(activeGoldenSignal.symbol)
+                    setIsBrainOpen(true)
+                  }}
+                  title={`Open 2-Week Swing Period Analysis (Technical Graph + News Confluence) for ${activeGoldenSignal.symbol}`}
+                  style={{
+                    background: 'rgba(14, 165, 233, 0.15)',
+                    color: '#0284c7',
+                    border: '1px solid #0284c7',
+                    borderRadius: '6px',
+                    padding: '0.5rem 0.95rem',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Calendar size={14} />
+                  <span>2-WEEK SWING CONE</span>
+                </button>
+
+                <button
                   className={`hero-copy-btn ${heroCopied ? 'copied' : ''}`}
                   onClick={() => {
                     const sym = activeGoldenSignal.symbol
@@ -1779,8 +1836,17 @@ function App() {
         })()}
       </section>
 
-
-
+      {/* 2-WEEK SWING TRADING STATION (DIRECTLY ON MAIN PAGE) */}
+      {activeNav === 'Dashboard' && (
+        <TwoWeekSwingStation
+          initialSymbol={activeGoldenSignal?.symbol || 'NVDA'}
+          API_BASE_URL={API_BASE_URL}
+          onOpenPaperTrade={(sym) => {
+            setPaperTradeSymbol(sym)
+            setIsPaperTradingOpen(true)
+          }}
+        />
+      )}
 
       {/* Main Body View Switching based on activeNav */}
       <main className="minimal-main-content">

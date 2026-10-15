@@ -26,7 +26,8 @@ export default function MicroRecoveryHub({
   signals = [],
   paperStats = {},
   onOpenPaperTrade = null,
-  onOpenChart = null
+  onOpenChart = null,
+  API_BASE_URL = 'http://127.0.0.1:8001'
 }) {
   // Current tracking balance (defaults to paper portfolio balance if <= 50, otherwise 6.00)
   const [accountBalance, setAccountBalance] = useState(() => {
@@ -51,7 +52,7 @@ export default function MicroRecoveryHub({
     if (!isOpen || !calcSymbol) return
     let isMounted = true
     setLoadingNews(true)
-    fetch(`http://127.0.0.1:8000/api/brain/fusion/?symbol=${encodeURIComponent(calcSymbol)}`)
+    fetch(`${API_BASE_URL || 'http://127.0.0.1:8001'}/api/brain/fusion/?symbol=${encodeURIComponent(calcSymbol)}`)
       .then(res => res.json())
       .then(data => {
         if (isMounted) {

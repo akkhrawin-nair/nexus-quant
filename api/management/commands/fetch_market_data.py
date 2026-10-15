@@ -155,8 +155,13 @@ class Command(BaseCommand):
                 # 3. Database Injection (Upsert full historical series into MarketPrices table)
                 ticker_records = 0
                 with connection.cursor() as cursor:
+                    cursor.execute("SELECT TradeDate FROM MarketPrices WHERE Symbol = %s", [ticker_symbol])
+                    existing_dates = {str(r[0]) for r in cursor.fetchall()}
+                    cutoff_update = str(df['TradeDate'].iloc[-20]) if len(df) >= 20 else ''
+
                     for _, row in df.iterrows():
                         row_date = row['TradeDate']
+                        row_date_str = str(row_date)
                         c_close = float(round(row['Close'], 4))
                         c_macd = float(round(row['MACD'], 4))
                         c_macd_sig = float(round(row['MACD_Signal'], 4))
@@ -166,15 +171,13 @@ class Command(BaseCommand):
                         c_low = float(round(row['Low'], 4))
                         c_vol = int(row.get('Volume', 0))
 
-                        cursor.execute("SELECT COUNT(*) FROM MarketPrices WHERE Symbol = %s AND TradeDate = %s", [ticker_symbol, row_date])
-                        row_exists = cursor.fetchone()[0] > 0
-
-                        if row_exists:
-                            cursor.execute(
-                                "UPDATE MarketPrices SET ClosePrice = %s, MACD = %s, MACD_Signal = %s, EMA_20 = %s WHERE Symbol = %s AND TradeDate = %s",
-                                [c_close, c_macd, c_macd_sig, c_ema_20, ticker_symbol, row_date]
-                            )
-                            updated_count += 1
+                        if row_date_str in existing_dates:
+                            if not cutoff_update or row_date_str >= cutoff_update:
+                                cursor.execute(
+                                    "UPDATE MarketPrices SET ClosePrice = %s, MACD = %s, MACD_Signal = %s, EMA_20 = %s, Volume = %s WHERE Symbol = %s AND TradeDate = %s",
+                                    [c_close, c_macd, c_macd_sig, c_ema_20, c_vol, ticker_symbol, row_date]
+                                )
+                                updated_count += 1
                         else:
                             cursor.execute(
                                 "INSERT INTO MarketPrices (Symbol, AssetType, TradeDate, OpenPrice, HighPrice, LowPrice, ClosePrice, Volume, EMA_20, MACD, MACD_Signal) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
