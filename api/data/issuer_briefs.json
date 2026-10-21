@@ -1,0 +1,26 @@
+{
+  "reviewed_at": "2026-10-21",
+  "EOSE": {
+    "business": "Zinc-based long-duration energy storage; the key business question is whether production growth can become profitable deliveries.",
+    "bull_case": "Revenue and manufacturing scale are improving. Continued shipment growth and margin improvement could strengthen the operating thesis.",
+    "bear_case": "Gross margins remain deeply negative. Production ramp, financing, dilution, and conversion of backlog to cash remain important risks.",
+    "notes": [{
+      "date": "2026-10-19",
+      "title": "Preliminary Q3 update: growth with continuing losses at gross-margin level",
+      "fact": "Eos estimated Q3 revenue of $82–83 million and GAAP gross margin of −55% to −53%. It expected annual revenue in the lower half of its $300–350 million range. These figures are preliminary.",
+      "interpretation": "Growth supports the manufacturing-ramp thesis, while negative gross margins and the lower-half revenue outlook temper it. This does not predict a price rise.",
+      "url": "https://investors.eose.com/news-releases/news-release-details/eos-energy-enterprises-announces-preliminary-third-quarter-2026"
+    }],
+    "events": [{"date": "2026-11-05", "title": "Q3 results before US market open; conference call at 08:30 New York time", "url": "https://investors.eose.com/news-releases/news-release-details/eos-energy-enterprises-announces-preliminary-third-quarter-2026"}]
+  },
+  "ONDS": {
+    "business": "Autonomous defense, drones, robotics and related technologies; monitor whether orders convert into deliveries and sustainable operating earnings.",
+    "bull_case": "New orders and a broader defense portfolio support the demand thesis. Delivery milestones and conversion of backlog into revenue are the key evidence to watch.",
+    "bear_case": "Acquisition integration, cash deployment, dilution, delivery timing and continuing operating losses can offset strong order headlines.",
+    "notes": [
+      {"date":"2026-10-07", "title":"Order update: more than $165 million of additional orders", "fact":"Ondas reported over $165 million in orders in the second half of August through October 1, bringing disclosed orders since June 30 above $270 million.", "interpretation":"Orders support demand visibility, but they are not the same as revenue, cash collected or profit. The announcement alone does not establish a two-week catalyst.", "url":"https://ir.ondas.com/press-releases/detail/333/ondas-secures-over-165-million-in-new-orders-since-last"},
+      {"date":"2026-08-13", "title":"Q2 operating baseline", "fact":"Ondas reported Q2 revenue of $83.8 million and an adjusted EBITDA loss of $50.6 million. Adjusted EBITDA is a company-defined non-GAAP measure.", "interpretation":"The investment thesis depends on future delivery and operating leverage, not revenue growth alone. This quarterly baseline is older than the current news review.", "url":"https://ir.ondas.com/press-releases/detail/326/ondas-posts-record-q2-2026-revenue-of-83-8-million-on"}
+    ],
+    "events": []
+  }
+}

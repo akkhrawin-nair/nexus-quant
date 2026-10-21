@@ -32,5 +32,6 @@ viral_shorts_output/
 Thumbs.db
 .vscode/
 .idea/
+.cache/
 scratch/
 scratch_*.json

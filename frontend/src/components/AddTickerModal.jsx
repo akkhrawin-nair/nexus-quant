@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Search, Loader2, Sparkles, TrendingUp, Layers } from 'lucide-react'
+import { Plus, X, Search, Loader2, Sparkles } from 'lucide-react'
 
 const SUGGESTED_TICKERS = [
   { symbol: 'AAPL', name: 'Apple Inc', type: 'US Equity' },

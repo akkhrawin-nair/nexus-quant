@@ -2,8 +2,13 @@
 
 const STORAGE_KEY = 'nexus_quant_paper_portfolio';
 const DEFAULT_INITIAL_BALANCE = 6.00;
+const MAX_CASH = 1e12;
+const validCash = value => Number.isFinite(value) && value >= 0 && value <= MAX_CASH;
+const invalidNumbers = value => typeof value === 'number' ? !Number.isFinite(value) :
+  value !== null && typeof value === 'object' && Object.values(value).some(invalidNumbers);
 
 export const DEFAULT_PORTFOLIO = {
+  version: 2,
   balance: DEFAULT_INITIAL_BALANCE,
   initialBalance: DEFAULT_INITIAL_BALANCE,
   positions: [],
@@ -17,30 +22,29 @@ export function getPortfolio() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      savePortfolio(DEFAULT_PORTFOLIO);
-      return { ...DEFAULT_PORTFOLIO };
+      return structuredClone(DEFAULT_PORTFOLIO);
     }
     const data = JSON.parse(raw);
-    // If user has the legacy fake $10,000 balance, migrate to real $6.00 capital
-    if (data.initialBalance === 10000 || data.balance === 10000) {
-      const migrated = {
-        balance: DEFAULT_INITIAL_BALANCE,
-        initialBalance: DEFAULT_INITIAL_BALANCE,
-        positions: [],
-        history: []
-      };
-      savePortfolio(migrated);
-      return migrated;
+    if (!data || !validCash(data.balance) || !validCash(data.initialBalance) || invalidNumbers(data) ||
+        !Array.isArray(data.positions) || !Array.isArray(data.history) ||
+        (data.version && data.version !== 2)) {
+      throw new Error('Stored portfolio format is invalid or unsupported. Export or restore your saved data before trading.');
+    }
+    if (data.positions.some(p => !p || !p.id || !p.symbol || !positive(p.quantity) || !positive(p.entryPrice) || !positive(p.totalCost))) {
+      throw new Error('Stored positions require repair; the saved data has been preserved.');
+    }
+    if (data.history.some(h => !h || typeof h !== 'object' || !Number.isFinite(h.pnlDollar))) {
+      throw new Error('Stored trade history requires repair; the saved data has been preserved.');
     }
     return {
+      version: 2,
       balance: typeof data.balance === 'number' ? data.balance : DEFAULT_INITIAL_BALANCE,
       initialBalance: typeof data.initialBalance === 'number' ? data.initialBalance : DEFAULT_INITIAL_BALANCE,
       positions: Array.isArray(data.positions) ? data.positions : [],
       history: Array.isArray(data.history) ? data.history : []
     };
   } catch (err) {
-    console.error('Error loading paper portfolio:', err);
-    return { ...DEFAULT_PORTFOLIO };
+    return { ...structuredClone(DEFAULT_PORTFOLIO), storageError: err.message };
   }
 }
 
@@ -49,10 +53,26 @@ export function getPortfolio() {
  */
 export function savePortfolio(portfolio) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio));
+    if (portfolio.storageError) throw new Error(portfolio.storageError);
+    if (!validCash(portfolio.balance) || !validCash(portfolio.initialBalance) || invalidNumbers(portfolio)) {
+      throw new Error('Cash or computed values exceed the supported finite range ($0 to $1 trillion).');
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...portfolio, version: 2 }));
     window.dispatchEvent(new CustomEvent('paperPortfolioUpdated', { detail: portfolio }));
+    return true;
   } catch (err) {
-    console.error('Error saving paper portfolio:', err);
+    throw new Error(`Portfolio could not be saved: ${err.message}`, { cause: err });
+  }
+}
+
+const positive = value => typeof value === 'number' && Number.isFinite(value) && value > 0;
+const cents = value => Math.round((value + Number.EPSILON) * 100) / 100;
+function persist(portfolio) {
+  try {
+    savePortfolio(portfolio);
+    return null;
+  } catch (err) {
+    return { success: false, message: err.message };
   }
 }
 
@@ -69,16 +89,17 @@ export function openPosition({
   reason = 'Quantitative Signal Follow'
 }) {
   const portfolio = getPortfolio();
+  if (portfolio.storageError) return { success: false, message: portfolio.storageError };
   const price = Number(entryPrice);
   const totalAmount = Number(amount);
 
-  if (!price || price <= 0) {
+  if (!positive(price) || price > MAX_CASH) {
     return { success: false, message: 'Invalid entry price' };
   }
-  if (!totalAmount || totalAmount <= 0) {
+  if (!positive(totalAmount) || totalAmount > MAX_CASH || cents(totalAmount) < .01) {
     return { success: false, message: 'Please enter a valid investment amount' };
   }
-  if (totalAmount > portfolio.balance) {
+  if (cents(totalAmount) > portfolio.balance) {
     return { 
       success: false, 
       message: `Insufficient cash. Available: $${portfolio.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}` 
@@ -86,10 +107,18 @@ export function openPosition({
   }
 
   // Calculate fractional quantity (supports micro accounts with up to 5 decimals)
-  const rawQty = totalAmount / price;
+  if (typeof symbol !== 'string' || !/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/i.test(symbol)) {
+    return { success: false, message: 'Invalid ticker symbol' };
+  }
+  for (const level of [stopLoss, takeProfit]) {
+    if (level !== null && !positive(Number(level))) return { success: false, message: 'Trade levels must be positive finite prices' };
+  }
+  const rawQty = cents(totalAmount) / price;
   // Allow high fractional precision (5 decimals) so small accounts ($1.50 - $6.00) can buy fractional shares accurately
-  const quantity = Number(rawQty.toFixed(5));
-  const actualCost = Number(totalAmount.toFixed(2));
+  const quantity = Math.floor(rawQty * 1e12) / 1e12;
+  if (!positive(quantity)) return { success: false, message: 'Amount is too small for supported quantity precision' };
+  const actualCost = cents(quantity * price);
+  if (actualCost < .01) return { success: false, message: 'Minimum purchase is $0.01' };
 
   const newPosition = {
     id: `pos-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -107,7 +136,8 @@ export function openPosition({
   portfolio.balance = Number((portfolio.balance - actualCost).toFixed(2));
   portfolio.positions.unshift(newPosition);
 
-  savePortfolio(portfolio);
+  const failure = persist(portfolio);
+  if (failure) return failure;
   return { success: true, position: newPosition, remainingBalance: portfolio.balance };
 }
 
@@ -116,6 +146,7 @@ export function openPosition({
  */
 export function closePosition(positionId, exitPrice) {
   const portfolio = getPortfolio();
+  if (portfolio.storageError) return { success: false, message: portfolio.storageError };
   const index = portfolio.positions.findIndex(p => p.id === positionId);
 
   if (index === -1) {
@@ -123,7 +154,8 @@ export function closePosition(positionId, exitPrice) {
   }
 
   const pos = portfolio.positions[index];
-  const closePrice = Number(exitPrice) || pos.entryPrice;
+  const closePrice = Number(exitPrice);
+  if (!positive(closePrice) || closePrice > MAX_CASH) return { success: false, message: 'A positive observed exit price within the supported finite range is required' };
   const exitValue = Number((pos.quantity * closePrice).toFixed(2));
   const pnlDollar = Number((exitValue - pos.totalCost).toFixed(2));
   const pnlPercent = pos.totalCost > 0 ? Number(((pnlDollar / pos.totalCost) * 100).toFixed(2)) : 0.0;
@@ -149,7 +181,8 @@ export function closePosition(positionId, exitPrice) {
   portfolio.positions.splice(index, 1);
   portfolio.history.unshift(closedTrade);
 
-  savePortfolio(portfolio);
+  const failure = persist(portfolio);
+  if (failure) return failure;
   return { success: true, closedTrade, newBalance: portfolio.balance };
 }
 
@@ -158,11 +191,13 @@ export function closePosition(positionId, exitPrice) {
  */
 export function addFunds(amountToAdd) {
   const portfolio = getPortfolio();
+  if (portfolio.storageError) return { success: false, message: portfolio.storageError };
   const amt = Number(amountToAdd);
-  if (!amt || amt <= 0) return { success: false, message: 'Invalid deposit amount' };
+  if (!positive(amt) || amt > MAX_CASH || cents(amt) < .01 || !validCash(portfolio.balance + amt) || !validCash(portfolio.initialBalance + amt)) return { success: false, message: 'Invalid deposit amount or account limit exceeded' };
   portfolio.balance = Number((portfolio.balance + amt).toFixed(2));
   portfolio.initialBalance = Number((portfolio.initialBalance + amt).toFixed(2));
-  savePortfolio(portfolio);
+  const failure = persist(portfolio);
+  if (failure) return failure;
   return { success: true, newBalance: portfolio.balance };
 }
 
@@ -170,8 +205,10 @@ export function addFunds(amountToAdd) {
  * Resets the paper portfolio back to a clean starting cash balance.
  */
 export function resetPortfolio(startingCash = DEFAULT_INITIAL_BALANCE) {
-  const cash = Number(startingCash) > 0 ? Number(startingCash) : DEFAULT_INITIAL_BALANCE;
+  if (!positive(Number(startingCash)) || Number(startingCash) > MAX_CASH) throw new Error('Starting cash must be finite and within the supported range.');
+  const cash = cents(Number(startingCash));
   const fresh = {
+    version: 2,
     balance: Number(cash.toFixed(2)),
     initialBalance: Number(cash.toFixed(2)),
     positions: [],
@@ -186,7 +223,7 @@ export function resetPortfolio(startingCash = DEFAULT_INITIAL_BALANCE) {
  */
 export function calculatePortfolioStats(portfolio, livePricesMap = {}) {
   const balance = portfolio?.balance || 0;
-  const initialBalance = portfolio?.initialBalance || DEFAULT_INITIAL_BALANCE;
+  const initialBalance = portfolio?.initialBalance ?? DEFAULT_INITIAL_BALANCE;
   const positions = portfolio?.positions || [];
   const history = portfolio?.history || [];
 
@@ -215,7 +252,7 @@ export function calculatePortfolioStats(portfolio, livePricesMap = {}) {
 
   const grossWins = history.filter(h => h.pnlDollar > 0).reduce((sum, h) => sum + h.pnlDollar, 0);
   const grossLosses = Math.abs(history.filter(h => h.pnlDollar < 0).reduce((sum, h) => sum + h.pnlDollar, 0));
-  const profitFactor = grossLosses > 0 ? grossWins / grossLosses : grossWins > 0 ? 99.9 : 0.0;
+  const profitFactor = grossLosses > 0 ? grossWins / grossLosses : null;
 
   // Streak Tracking (Current consecutive wins/losses and all-time best)
   let currentStreak = 0;
@@ -226,7 +263,7 @@ export function calculatePortfolioStats(portfolio, livePricesMap = {}) {
   // Chronological order (oldest to newest) to calculate best all-time streak
   const chronological = [...history].sort((a, b) => new Date(a.exitDate || 0) - new Date(b.exitDate || 0));
   chronological.forEach(h => {
-    const isWin = (h.pnlDollar || 0) >= 0;
+    const isWin = (h.pnlDollar || 0) > 0;
     if (isWin) {
       runningWinStreak += 1;
       if (runningWinStreak > bestWinStreak) {
@@ -239,11 +276,12 @@ export function calculatePortfolioStats(portfolio, livePricesMap = {}) {
 
   // Current streak from newest trade backwards (history[0] is latest)
   if (history.length > 0) {
-    const firstOutcome = (history[0].pnlDollar || 0) >= 0 ? 'WIN' : 'LOSS';
+    const outcomeOf = h => h.pnlDollar > 0 ? 'WIN' : h.pnlDollar < 0 ? 'LOSS' : 'NONE';
+    const firstOutcome = outcomeOf(history[0]);
     streakType = firstOutcome;
     for (let i = 0; i < history.length; i++) {
-      const outcome = (history[i].pnlDollar || 0) >= 0 ? 'WIN' : 'LOSS';
-      if (outcome === firstOutcome) {
+      const outcome = outcomeOf(history[i]);
+      if (outcome === firstOutcome && outcome !== 'NONE') {
         currentStreak += 1;
       } else {
         break;
@@ -275,7 +313,7 @@ export function calculatePortfolioStats(portfolio, livePricesMap = {}) {
     wins,
     losses,
     winRate: Number(winRate.toFixed(1)),
-    profitFactor: Number(profitFactor.toFixed(2)),
+    profitFactor: profitFactor === null ? null : Number(profitFactor.toFixed(2)),
     currentStreak,
     streakType,
     currentStreakBadge,
@@ -334,7 +372,7 @@ export function exportPortfolioHistoryToCSV(portfolio) {
   const link = document.createElement('a');
   const todayStr = new Date().toISOString().slice(0, 10);
   link.setAttribute('href', url);
-  link.setAttribute('download', `wehawt_trade_ledger_${todayStr}.csv`);
+  link.setAttribute('download', `kappa_trade_ledger_${todayStr}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

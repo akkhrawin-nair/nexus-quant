@@ -2,19 +2,12 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap,
-  TrendingUp,
-  ShieldAlert,
   ArrowUpRight,
   ArrowDownRight,
   Maximize2,
-  ChevronRight,
   Volume2,
   VolumeX,
-  Target,
-  Sliders,
-  Sparkles,
   ChevronDown,
-  Briefcase
 } from 'lucide-react'
 import { scanRealTimeBreakouts } from '../utils/breakoutAlertUtils'
 
@@ -39,7 +32,7 @@ function playAlertChime() {
 
     osc.start()
     osc.stop(ctx.currentTime + 0.3)
-  } catch (e) {
+  } catch {
     // AudioContext blocked or unsupported
   }
 }

@@ -1,16 +1,9 @@
-# React + Vite
+# KAPPA frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React/Vite personal research dashboard. Start the backend on `127.0.0.1:8001`, then run `npm ci` and `npm run dev` here. Open `http://127.0.0.1:5173`.
 
-Currently, two official plugins are available:
+Copy `.env.example` to `.env` only to override `VITE_API_BASE_URL`. Restart Vite after environment changes.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Commands: `npm test`, `npm run lint`, `npm run build`.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The dashboard uses actual stored historical bars. Detailed tools load on demand. Browser-local paper trading is a simulation, and missing source data has explicit states. See the root README and `docs/data-and-methodology.md` for setup, accounting conventions, backtest assumptions, and limitations.

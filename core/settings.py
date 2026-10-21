@@ -11,23 +11,28 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+MARKET_CACHE_PATH = os.environ.get('MARKET_CACHE_PATH', str(BASE_DIR / '.cache' / 'yfinance'))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-qatlj^kp090*87r_jwe6t%0*3z8c82_@i__gn+612*=ppl(-st'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
-
-
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY is required when DJANGO_DEBUG=0.')
+    SECRET_KEY = 'local-development-only-not-for-deployment'
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 
 # Application definition
 
@@ -74,47 +79,22 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-import os
-
-try:
-    import pyodbc
-    HAS_PYODBC = True
-except ImportError:
-    HAS_PYODBC = False
-
-# Database: Auto-detects local MSSQL SQLEXPRESS (office environment)
-# If not reachable (e.g. home PC or Mac without SQL Server), seamlessly falls back to sqlite3
-def _detect_database():
-    if not HAS_PYODBC or os.environ.get('USE_SQLITE', '0') == '1':
-        return {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    try:
-        conn = pyodbc.connect(
-            r'Driver={ODBC Driver 17 for SQL Server};Server=.\SQLEXPRESS;Database=InventoryDB;Trusted_Connection=yes;TrustServerCertificate=yes;',
-            timeout=2
-        )
-        conn.close()
-        return {
-            'ENGINE': 'mssql',
-            'NAME': 'InventoryDB',
-            'HOST': r'.\SQLEXPRESS',
-            'OPTIONS': {
-                'driver': 'ODBC Driver 17 for SQL Server',
-                'extra_params': 'Trusted_Connection=yes;TrustServerCertificate=yes;'
-            },
-        }
-    except Exception:
-        return {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-
-DATABASES = {
-    'default': _detect_database()
-}
-
+if os.environ.get('DATABASE_ENGINE', 'sqlite') == 'mssql':
+    DATABASES = {'default': {
+        'ENGINE': 'mssql',
+        'NAME': os.environ.get('DATABASE_NAME', 'InventoryDB'),
+        'HOST': os.environ.get('DATABASE_HOST', r'.\SQLEXPRESS'),
+        'OPTIONS': {
+            'driver': os.environ.get('DATABASE_DRIVER', 'ODBC Driver 17 for SQL Server'),
+            'extra_params': os.environ.get('DATABASE_OPTIONS', 'Trusted_Connection=yes;'),
+        },
+    }}
+else:
+    DATABASES = {'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.environ.get('SQLITE_PATH', str(BASE_DIR / 'db.sqlite3')),
+        'OPTIONS': {'timeout': 20},
+    }}
 
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
@@ -167,4 +147,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:3000",
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {'anon': '120/min', 'ingestion': '12/hour'},
+}

@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .http_views import OptionQuoteView, AnalystBriefView
 from .views import (
     BullishSignalList,
     BearishSignalList,
@@ -17,13 +18,21 @@ from .views import (
     BudgetScalpFinderView,
     Options6MoBacktestView,
     MarketPingView,
-    TenYearBacktestView
+    TenYearBacktestView,
+    HistoricalBacktestView,
+    CorrelationView,
+    MarketQuotesView,
 )
 
 router = DefaultRouter()
 router.register(r'volatility', VolatilityDataViewSet, basename='volatility')
 
 urlpatterns = [
+    path('research/brief/', AnalystBriefView.as_view(), name='analyst-brief'),
+    path('options/quote/', OptionQuoteView.as_view(), name='option-quote'),
+    path('market/quotes/', MarketQuotesView.as_view(), name='market-quotes'),
+    path('strategies/backtest/', HistoricalBacktestView.as_view(), name='historical-backtest'),
+    path('portfolio/correlation/', CorrelationView.as_view(), name='portfolio-correlation'),
     path('', include(router.urls)),
     path('signals/buy/', BullishSignalList.as_view(), name='buy-signals'),
     path('signals/sell/', BearishSignalList.as_view(), name='sell-signals'),

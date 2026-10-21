@@ -115,7 +115,7 @@ export function calculateDynamicTradePlan(signal = {}, entryPrice = 0) {
   const isHighBeta = ['NVDA', 'TSLA', 'MSTR', 'PLTR', 'SMCI', 'AMD', 'COIN', 'ARM', 'EOSE', 'ONDS', 'SOFI', 'HOOD'].includes(sym)
   const isEtfOrCommodity = assetType.includes('etf') || assetType.includes('commodity') || ['SPY', 'QQQ', 'DIA', 'IWM', 'TLT', 'GLD', 'SLV', 'UNG', 'USO', 'XLF', 'XLK', 'XLE'].includes(sym)
 
-  let tp2Pct = 7.5
+  let tp2Pct
   let slPct = 2.6
   let duration = golden.holding_duration || '3 - 5 Days'
 

@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts'
+import { createChart, ColorType, CandlestickSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts'
 import { detectSupportResistance, calculateTradeSetupLevels } from '../utils/autoChartingUtils'
+const EMPTY = []
 
 /**
  * Formats market price objects into the required lightweight-charts candlestick data structure.
  * Expected input: array of { time/Date, open, high, low, close } or MarketPrices dicts.
  */
-export function formatCandleData(rawData = []) {
+function formatCandleData(rawData = []) {
   if (!Array.isArray(rawData)) return []
 
   const formatted = rawData.map(item => {
@@ -54,7 +55,10 @@ export default function TradingChart({
   isBuy = true, 
   height = 160,
   showAutoLevels = true,
-  asset = null
+  asset = null,
+  overlays = EMPTY,
+  priceLevels = EMPTY,
+  events = EMPTY
 }) {
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
@@ -137,6 +141,21 @@ export default function TradingChart({
     if (candleData.length > 0) {
       candleSeries.setData(candleData)
 
+      for (const overlay of overlays) {
+        const line = chart.addSeries(LineSeries, {color:overlay.color, lineWidth:2, title:overlay.name,
+          priceLineVisible:false, lastValueVisible:false})
+        line.setData(overlay.data)
+      }
+      for (const level of priceLevels) {
+        if (Number.isFinite(level.price) && level.price > 0) candleSeries.createPriceLine({price:level.price,
+          color:level.color, lineWidth:1, lineStyle:2, axisLabelVisible:true, title:level.title})
+      }
+      const dates = new Set(candleData.map(candle => candle.time))
+      const markers = [...new Map(events.filter(event => dates.has(event.date)).map(event => [event.date,
+        {time:event.date, position:'aboveBar', color:'#7c3aed', shape:'circle', text:'News'}])).values()]
+        .sort((a,b) => a.time.localeCompare(b.time))
+      if (markers.length) createSeriesMarkers(candleSeries,markers)
+
       // Auto-Technical S/R & Trade Setup Overlays
       if (showAutoLevels && candleData.length >= 8) {
         const lastClose = candleData[candleData.length - 1].close
@@ -207,11 +226,13 @@ export default function TradingChart({
       chart.remove()
       chartRef.current = null
     }
-  }, [data, isBuy, height, showAutoLevels, asset])
+  }, [data, isBuy, height, showAutoLevels, asset, overlays, priceLevels, events])
 
   return (
     <div
       ref={chartContainerRef}
+      role="img"
+      aria-label="Historical candlestick chart with optional technical overlays and scenario levels"
       style={{
         width: '100%',
         height: `${height}px`,

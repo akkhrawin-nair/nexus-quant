@@ -1,0 +1,131 @@
+import { useEffect, useRef, useState } from 'react'
+import { ToolModal } from './ResearchTools'
+import { optionEstimate, reviewOptionEstimate } from '../lib/options'
+import { apiRequest } from '../lib/api'
+
+const usd = value => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2}).format(value)
+const quoteFields = new Set(['symbol','type','strike','expiration','bid','ask','quoteTime','bidSize','askSize'])
+const localTime = value => {
+  const date = new Date(value)
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,19)
+}
+
+export default function OptionsQuoteTool({ onClose }) {
+  const [form, setForm] = useState({symbol:'', type:'call', strike:'', expiration:'', bid:'', ask:'', contracts:'1', multiplier:'100', fee:'0', quoteTime:'', bidSize:'', askSize:'', budget:'', maxSpreadPct:'10', plannedExit:''})
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+  const [contract, setContract] = useState('')
+  const [providerQuote, setProviderQuote] = useState(null)
+  const [fetching, setFetching] = useState(false)
+  const [quoteError, setQuoteError] = useState('')
+  const pending = useRef(null)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(timer) }, [])
+  useEffect(() => () => pending.current?.abort(), [])
+  const cancelFetch = () => { pending.current?.abort(); setFetching(false) }
+  const change = (key, value) => {
+    cancelFetch()
+    if (quoteFields.has(key)) setProviderQuote(null)
+    setForm(previous => ({...previous, [key]:value})); setResult(null); setError('')
+  }
+  const loadQuote = async () => {
+    pending.current?.abort()
+    const controller = new AbortController()
+    pending.current = controller
+    setFetching(true); setQuoteError(''); setResult(null); setProviderQuote(null)
+    try {
+      const quote = await apiRequest(`/api/options/quote/?${new URLSearchParams({contract:contract.trim().toUpperCase()})}`, {signal:controller.signal})
+      if (controller.signal.aborted) return
+      setForm(previous => ({...previous, symbol:quote.symbol, type:quote.type, strike:quote.strike, expiration:quote.expiration,
+        bid:String(quote.bid), ask:String(quote.ask), bidSize:String(quote.bid_size), askSize:String(quote.ask_size), quoteTime:localTime(quote.quote_time)}))
+      setProviderQuote(quote); setError(''); setNow(Date.now())
+    } catch (failure) { if (!controller.signal.aborted) setQuoteError(failure.message) }
+    finally { if (!controller.signal.aborted) setFetching(false) }
+  }
+  const field = (key, label, props = {}) => <label>{label}<input required {...props} value={form[key]} onChange={event => change(key, event.target.value)}/></label>
+  const calculate = event => {
+    event.preventDefault()
+    try {
+      const time = Date.now()
+      const estimate = optionEstimate({...form, quoteTime:providerQuote?.quote_time || form.quoteTime}, time)
+      reviewOptionEstimate(estimate, form, time)
+      setResult({estimate, plan:{...form}, quote:providerQuote}); setNow(time); setError('')
+    }
+    catch (failure) { setResult(null); setError(failure.message) }
+  }
+  const estimate = result?.estimate
+  const review = result ? reviewOptionEstimate(estimate, result.plan, now) : null
+  if (review && result.quote) review.checks[0] = {id:'source', label:'Quote source', status:'unverified', detail:`Alpaca OPRA snapshot for ${result.quote.contract}. Bid/ask and timestamp retrieved from provider; Dime fills, contract multiplier, and session remain unverified.`}
+  const stale = estimate && now - estimate.quoteTime > 60000
+  return <ToolModal title="Options bid / ask calculator" onClose={onClose}>
+    <div className="data-quality-notice"><strong>{providerQuote ? 'Alpaca OPRA snapshot · Not a guaranteed fill' : 'Manual mode · Provider connection available below'}</strong>
+      <span>Keep trading in Dime. Load an exact-contract quote, or copy bid and ask from the same Dime/Webull contract at the same time.</span></div>
+    <div className="research-controls">
+      <label>Exact OCC contract symbol<input value={contract} placeholder="e.g. AAPL261030C00250000" maxLength={21} onChange={event => {cancelFetch(); setContract(event.target.value); setProviderQuote(null); setResult(null); setQuoteError('')}}/></label>
+      <button type="button" disabled={fetching || !contract.trim()} onClick={loadQuote}>{fetching ? 'Loading OPRA quote…' : 'Load OPRA quote'}</button>
+    </div>
+    <p>Requires Alpaca API credentials and OPRA data access. Free indicative prices are never substituted. Copy the exact contract identifier from your broker; verify its deliverable and multiplier.</p>
+    {quoteError && <p className="research-error" role="alert">{quoteError}</p>}
+    {providerQuote && <p role="status">{providerQuote.contract} · Source quote: {new Date(providerQuote.quote_time).toLocaleString()} · {now - Date.parse(providerQuote.quote_time) > 60000 ? 'OLD QUOTE — refresh before comparing prices.' : 'Provider snapshot loaded; refresh to request a new snapshot.'} Editing quote fields switches back to manual mode.</p>}
+    <form onSubmit={calculate}>
+      <div className="research-controls">
+        {field('symbol', 'Underlying ticker', {maxLength:15, placeholder:'e.g. AAPL'})}
+        <label>Option type<select value={form.type} onChange={event => change('type', event.target.value)}><option value="call">Call</option><option value="put">Put</option></select></label>
+        {field('strike', 'Strike ($)', {type:'number', min:'0.0001', step:'any'})}
+        {field('expiration', 'Expiration (US date)', {type:'date'})}
+      </div>
+      <p>Expiration must be within 14 calendar days, using the New York market date. This calculator does not track positions or enforce a holding deadline.</p>
+      <div className="research-controls">
+        {field('bid', 'Bid — sell reference ($)', {type:'number', min:'0', step:'any'})}
+        {field('ask', 'Ask — buy reference ($)', {type:'number', min:'0.0001', step:'any'})}
+        {field('quoteTime', 'Source quote time', {type:'datetime-local', step:'1'})}
+      </div>
+      <p>Enter quote time in your browser timezone: <strong>{Intl.DateTimeFormat().resolvedOptions().timeZone}</strong>. Convert Webull’s timestamp if needed; do not use the page-open time.</p>
+      <div className="research-controls">
+        {field('bidSize', 'Bid size (contracts, optional)', {type:'number', min:'0', step:'1', required:false, placeholder:'Unknown'})}
+        {field('askSize', 'Ask size (contracts, optional)', {type:'number', min:'0', step:'1', required:false, placeholder:'Unknown'})}
+      </div>
+      <div className="research-controls">
+        {field('contracts', 'Contracts', {type:'number', min:'1', max:'10000', step:'1'})}
+        {field('multiplier', 'Contract multiplier', {type:'number', min:'1', max:'10000', step:'1'})}
+        {field('fee', 'Fees per contract, per side ($)', {type:'number', min:'0', max:'10000', step:'any'})}
+      </div>
+      <p>Standard equity options commonly use 100. Verify the actual multiplier and fees in Webull, especially for adjusted contracts. Fees default to zero; enter your charges.</p>
+      <div className="research-controls">
+        {field('budget', 'Maximum premium budget ($)', {type:'number', min:'0', max:'1000000000', step:'any'})}
+        {field('maxSpreadPct', 'Your maximum spread (% of midpoint)', {type:'number', min:'0', max:'200', step:'any'})}
+        {field('plannedExit', 'Planned exit (US date)', {type:'date'})}
+        <button type="submit">Calculate estimates</button>
+      </div>
+      <p>The 10% spread threshold is an editable starting filter, not a recommendation. Plan assumes entry today. Exit must be on or before expiration and within 14 calendar days of entry. The date check cannot close a real trade or monitor a broker position.</p>
+    </form>
+    {error && <p className="research-error" role="alert">{error}</p>}
+    {result && <section aria-label="Option estimates" aria-live="polite">
+      <h3>{estimate.symbol} {estimate.expiration} {estimate.type.toUpperCase()} {usd(estimate.strike)}</h3>
+      <p>{result.quote ? 'Provider quote' : 'Manually entered quote'}: {new Date(estimate.quoteTime).toLocaleString()} · {stale ? 'OLD QUOTE — over 60 seconds; refresh or recheck your broker.' : 'Timestamp is under 60 seconds old; execution is unverified.'}</p>
+      <section className="options-review" aria-label="Pre-trade checks">
+        <h3>{result.quote ? 'Provider snapshot review — confirm in Dime' : 'Manual review — live verification required'}</h3>
+        <p>{review.checks.filter(check => check.status === 'attention').length} checks need attention. Passing checks confirm entered arithmetic or dates only.</p>
+        <ul>{review.checks.map(check => <li key={check.id} data-status={check.status}>
+          <strong>{check.label}: {check.status === 'pass' ? 'Within entered limits' : check.status === 'attention' ? 'Needs attention' : 'Unverified'}</strong>
+          <span>{check.detail}</span>
+        </li>)}</ul>
+      </section>
+      {estimate.zeroBid && <p role="alert" className="research-error">Zero bid: no positive sell quote was entered. A sale may not be available.</p>}
+      <dl className="research-metrics">
+        {[
+          ['Estimated buy cost at ask', usd(estimate.buyCost)],
+          ['Estimated sell proceeds at bid', usd(estimate.sellProceeds)],
+          ['Midpoint per share (reference only)', usd(estimate.midpoint)],
+          ['Bid–ask spread per share', usd(estimate.spread)],
+          ['Spread cost for this quantity', usd(estimate.spreadCost)],
+          ['Immediate round-trip loss estimate', usd(estimate.roundTripLoss)],
+          ['Break-even exit bid incl. entered fees', `$${review.breakEvenExitBid.toFixed(4)}`],
+        ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+      <p>Buy = ask × multiplier × contracts + fees. Sell = bid × multiplier × contracts − fees. Round trip assumes unchanged quotes and includes fees on both sides; it is not a forecast or realized P&amp;L.</p>
+      <p>Break-even is the future option bid needed to cover the ask-based entry and entered fees on both sides, not the underlying stock’s expiration break-even. Round it to a broker-permitted price increment. Additional fees or slippage increase the required price.</p>
+      <p>Quote sizes are manually entered; liquidity, market hours, and broker permissions are unverified. A limit price controls your acceptable price but does not guarantee execution.</p>
+    </section>}
+  </ToolModal>
+}

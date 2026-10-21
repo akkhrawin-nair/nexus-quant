@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUpRight, ArrowDownRight, Activity, Zap, TrendingUp, TrendingDown, Eye } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Activity, Eye } from 'lucide-react'
 
 // Relative weighting map for FinViz/Coin360 treemap proportions
 const TICKER_WEIGHTS = {
