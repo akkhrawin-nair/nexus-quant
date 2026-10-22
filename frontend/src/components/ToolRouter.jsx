@@ -6,5 +6,5 @@ const tools = {analyst:AnalystDesk,options:OptionsQuoteTool,backtest:BacktestToo
 
 export default function ToolRouter({ tool, onClose, ...props }) {
   const Component = tools[tool.kind] || EducationTool
-  return <Component key={`${tool.kind}:${tool.symbol || ''}`} onClose={onClose} initialSymbol={tool.symbol} initialTicker={tool.symbol} {...props}/>
+  return <Component key={`${tool.kind}:${tool.symbol || ''}`} onClose={onClose} initialSymbol={tool.symbol} initialTicker={tool.symbol} focusJournal={tool.focusJournal} {...props}/>
 }

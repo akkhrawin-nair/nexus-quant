@@ -3,7 +3,8 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianG
 import { apiRequest } from '../lib/api'
 import DataQualityNotice from './DataQualityNotice'
 import TradingChart from './TradingChart'
-import { getPortfolio, openPosition, closePosition, addFunds, calculatePortfolioStats, exportPortfolioHistoryToCSV } from '../utils/paperTradingStorage'
+import { getPortfolio, openPosition, closePosition, addFunds, calculatePortfolioStats, exportPortfolioHistoryToCSV, exportPaperPortfolioJSON, plannedDeadline } from '../utils/paperTradingStorage'
+import PaperDeadlineNotice from './PaperDeadlineNotice'
 import './ResearchTools.css'
 
 const number = value => value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
@@ -213,6 +214,7 @@ export function EducationTool({ onClose }) {
 
 export function PaperTool({ onClose, initialTicker = 'QQQ' }) {
   const [portfolio, setPortfolio] = useState(getPortfolio)
+  const [now,setNow] = useState(Date.now)
   const [symbol, setSymbol] = useState(initialTicker || 'QQQ')
   const [draft, setDraft] = useState(symbol)
   const [amount, setAmount] = useState('1.50')
@@ -228,7 +230,8 @@ export function PaperTool({ onClose, initialTicker = 'QQQ' }) {
     const update = () => setPortfolio(getPortfolio())
     window.addEventListener('paperPortfolioUpdated', update)
     window.addEventListener('storage', update)
-    return () => {window.removeEventListener('paperPortfolioUpdated', update); window.removeEventListener('storage', update)}
+    const timer=setInterval(()=>setNow(Date.now()),30000)
+    return () => {window.removeEventListener('paperPortfolioUpdated', update); window.removeEventListener('storage', update);clearInterval(timer)}
   }, [])
   const report = result => {
     setMessage(result.success ? 'Saved locally / บันทึกแล้ว' : result.message)
@@ -236,6 +239,8 @@ export function PaperTool({ onClose, initialTicker = 'QQQ' }) {
   }
   return <ToolModal title="Local paper portfolio / พอร์ตจำลอง" onClose={onClose}>
     <p>Simulation using the latest available daily close. No broker order is sent. Stored in this browser; export your trade history. Missing quotes use entry cost for indicative valuation and cannot fill an order.</p>
+    <p>Positions opened from saved share plans include their saved fees/slippage on both sides. Indicative equity uses modeled exit costs when a quote exists. Simple paper buys retain their original zero-cost convention. Stops and targets do not fill automatically.</p>
+    {portfolio.positions.some(p=>plannedDeadline(p,now)?.kind==='overdue') && <p role="alert" className="research-error">A saved-plan position is overdue. Review the deadline column; no automatic exit has occurred.</p>}
     {portfolio.storageError && <p role="alert">{portfolio.storageError}</p>}
     <Metrics items={[["Cash", `$${number(stats.balance)}`],['Indicative equity', `$${number(stats.totalEquity)}`],['Net deposits / starting capital', `$${number(stats.initialBalance)}`],['Realized P&L', `$${number(stats.totalRealizedPnl)}`]]}/>
     <SymbolForm draft={draft} setDraft={setDraft} onSubmit={s => setSymbol(s.trim().toUpperCase())}/><ResultState result={result}/>
@@ -250,9 +255,10 @@ export function PaperTool({ onClose, initialTicker = 'QQQ' }) {
     {message && <p role="status">{message}</p>}
     <h3>Open positions / สถานะที่เปิด</h3>
     {!portfolio.positions.length && <p>No open positions.</p>}
-    <div className="research-table-scroll"><table><thead><tr><th>Asset</th><th>Quantity</th><th>Entry</th><th>Observed daily close</th><th>Action</th></tr></thead><tbody>{portfolio.positions.map(p => <tr key={p.id}><td>{p.symbol}</td><td>{p.quantity}</td><td>${number(p.entryPrice)}</td><td>${number(prices[p.symbol])}</td><td><button disabled={!prices[p.symbol] || !!portfolio.storageError} onClick={() => report(closePosition(p.id, prices[p.symbol]))}>Paper close</button></td></tr>)}</tbody></table></div>
+    <div className="research-table-scroll"><table><thead><tr><th>Asset</th><th>Quantity</th><th>Entry reference</th><th>Observed daily close</th><th>Plan deadline</th><th>Action</th></tr></thead><tbody>{portfolio.positions.map(p => <tr key={p.id}><td>{p.symbol}</td><td>{p.quantity}</td><td>${number(p.entryPrice)}</td><td>${number(prices[p.symbol])}</td><td><PaperDeadlineNotice position={p} now={now}/></td><td><button disabled={!prices[p.symbol] || !!portfolio.storageError} onClick={() => report(closePosition(p.id, prices[p.symbol]))}>Paper close</button></td></tr>)}</tbody></table></div>
     <h3>Trade history / ประวัติ</h3><button onClick={() => exportPortfolioHistoryToCSV(portfolio)} disabled={!portfolio.history.length}>Export CSV</button>
-    <div className="research-table-scroll"><table><thead><tr><th>Asset</th><th>Exit date</th><th>Realized P&amp;L</th></tr></thead><tbody>{portfolio.history.map(p => <tr key={p.id}><td>{p.symbol}</td><td>{p.exitDate?.slice(0,10)}</td><td>${number(p.pnlDollar)}</td></tr>)}</tbody></table></div>
+    <button onClick={()=>{try {exportPaperPortfolioJSON();setMessage('Paper portfolio backup downloaded.')} catch(error){setMessage(error.message)}}}>Export portfolio backup</button>
+    <div className="research-table-scroll"><table><thead><tr><th>Asset</th><th>Exit date (UTC)</th><th>Net P&amp;L</th><th>Original risk multiple</th><th>Plan exit date</th></tr></thead><tbody>{portfolio.history.map(p => <tr key={p.id}><td>{p.symbol}</td><td>{p.exitDate?.slice(0,10)}</td><td>${number(p.pnlDollar)}</td><td>{p.realizedR == null ? '—' : `${number(p.realizedR)} R`}</td><td>{p.tradePlan ? `${p.tradePlan.scenario.exitDate}${p.exitDateMissed ? ' · missed' : ' · date met'}` : 'No saved plan'}</td></tr>)}</tbody></table></div>
   </ToolModal>
 }
 

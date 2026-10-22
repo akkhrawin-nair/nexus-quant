@@ -58,10 +58,12 @@ export default function TradingChart({
   asset = null,
   overlays = EMPTY,
   priceLevels = EMPTY,
-  events = EMPTY
+  events = EMPTY,
+  forecast = null
 }) {
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
+  const forecastAreaRef = useRef(null)
 
   useEffect(() => {
     if (!chartContainerRef.current) return
@@ -141,6 +143,19 @@ export default function TradingChart({
     if (candleData.length > 0) {
       candleSeries.setData(candleData)
 
+      if (forecast?.points?.length) {
+        for (const [key, title, color, style] of [
+          ['upper', 'Upper scenario', '#b45309', 3],
+          ['central', 'Trend estimate', '#2563eb', 2],
+          ['lower', 'Lower scenario', '#be123c', 3],
+        ]) {
+          const line = chart.addSeries(LineSeries, {color, lineStyle:style, lineWidth:2,
+            title, priceLineVisible:false, lastValueVisible:false})
+          line.setData([{time:forecast.anchor_date, value:forecast.anchor_price},
+            ...forecast.points.map(point=>({time:point.date,value:point[key]}))])
+        }
+      }
+
       for (const overlay of overlays) {
         const line = chart.addSeries(LineSeries, {color:overlay.color, lineWidth:2, title:overlay.name,
           priceLineVisible:false, lastValueVisible:false})
@@ -208,6 +223,16 @@ export default function TradingChart({
       chart.timeScale().fitContent()
     }
 
+    const positionForecast = () => {
+      const area = forecastAreaRef.current
+      if (!area) return
+      const x = forecast ? chart.timeScale().timeToCoordinate(forecast.anchor_date) : null
+      area.style.display = x === null ? 'none' : 'block'
+      if (x !== null) area.style.left = `${Math.max(0,x)}px`
+    }
+    chart.timeScale().subscribeVisibleLogicalRangeChange(positionForecast)
+    positionForecast()
+
     // Responsive ResizeObserver to adapt chart size dynamically when parent card container resizes
     const resizeObserver = new ResizeObserver(entries => {
       if (entries[0] && entries[0].contentRect) {
@@ -215,6 +240,7 @@ export default function TradingChart({
         if (width > 0) {
           chart.applyOptions({ width })
           chart.timeScale().fitContent()
+          positionForecast()
         }
       }
     })
@@ -223,16 +249,17 @@ export default function TradingChart({
 
     return () => {
       resizeObserver.disconnect()
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(positionForecast)
       chart.remove()
       chartRef.current = null
     }
-  }, [data, isBuy, height, showAutoLevels, asset, overlays, priceLevels, events])
+  }, [data, isBuy, height, showAutoLevels, asset, overlays, priceLevels, events, forecast])
 
   return (
     <div
       ref={chartContainerRef}
       role="img"
-      aria-label="Historical candlestick chart with optional technical overlays and scenario levels"
+      aria-label={forecast ? 'Historical candles followed by dashed future trend estimate and upper and lower scenarios. Numeric forecast table follows.' : 'Historical candlestick chart with optional technical overlays and scenario levels'}
       style={{
         width: '100%',
         height: `${height}px`,
@@ -240,6 +267,9 @@ export default function TradingChart({
         borderRadius: '6px',
         overflow: 'hidden'
       }}
-    />
+    ><div ref={forecastAreaRef} style={{display:'none',position:'absolute',top:0,bottom:28,right:58,
+      background:'rgba(37,99,235,.045)',borderLeft:'1px dashed #64748b',pointerEvents:'none',zIndex:1}}>
+      <span style={{position:'absolute',top:6,left:6,fontSize:10,color:'#334155',background:'#eff6ff',padding:'3px 5px',whiteSpace:'nowrap'}}>PROJECTED →</span>
+    </div></div>
   )
 }

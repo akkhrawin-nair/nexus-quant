@@ -91,12 +91,14 @@ class MarketDataTests(TestCase):
 
     @patch('api.services.ingestion.get_history', return_value=history())
     @patch('api.services.market_data.get_history', return_value=pd.DataFrame())
-    def test_stored_quote_preserves_actual_retrieval_time(self, _provider, _ingest):
+    def test_stored_quote_separates_provider_retrieval_from_database_write(self, _provider, _ingest):
         from datetime import datetime, timezone
         ingest_market_data({'QQQ':'ETF'})
         stamp=datetime(2026,1,3,tzinfo=timezone.utc)
         MarketPrice.objects.update(retrieved_at=stamp)
-        self.assertEqual(market_data.get_quote('QQQ')['data_quality']['retrieved_at'], stamp.isoformat())
+        quality = market_data.get_quote('QQQ')['data_quality']
+        self.assertIsNone(quality['retrieved_at'])
+        self.assertEqual(quality['stored_at'], stamp.isoformat())
 
     @patch('api.services.ingestion.get_history')
     def test_watchlist_limit_applies_to_individual_additions(self, get_history):

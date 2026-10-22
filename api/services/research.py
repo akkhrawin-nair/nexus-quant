@@ -14,7 +14,10 @@ def stored_history(symbol):
     frame.index = pd.to_datetime(frame.trade_date)
     frame.attrs['data_quality'] = data_quality('Stored Yahoo Finance adjusted daily bars', 'stale',
         str(frame.index[-1].date()), ['Stored session data; sync to update. Not a live quote.'])
-    frame.attrs['data_quality']['retrieved_at'] = rows[-1]['retrieved_at'].isoformat()
+    provider_time = rows[-1]['provider_retrieved_at']
+    frame.attrs['data_quality']['retrieved_at'] = provider_time.isoformat() if provider_time else None
+    frame.attrs['data_quality']['stored_at'] = rows[-1]['retrieved_at'].isoformat()
+    frame.attrs['data_quality']['retrieval_kind'] = 'provider_response'
     return frame
 
 

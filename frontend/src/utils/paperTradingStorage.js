@@ -1,4 +1,6 @@
 // frontend/src/utils/paperTradingStorage.js
+import { shareTradePlan } from '../lib/tradePlan.js';
+import { marketDate } from '../lib/options.js';
 
 const STORAGE_KEY = 'nexus_quant_paper_portfolio';
 const DEFAULT_INITIAL_BALANCE = 6.00;
@@ -12,7 +14,8 @@ export const DEFAULT_PORTFOLIO = {
   balance: DEFAULT_INITIAL_BALANCE,
   initialBalance: DEFAULT_INITIAL_BALANCE,
   positions: [],
-  history: []
+  history: [],
+  tradePlans: []
 };
 
 /**
@@ -36,12 +39,18 @@ export function getPortfolio() {
     if (data.history.some(h => !h || typeof h !== 'object' || !Number.isFinite(h.pnlDollar))) {
       throw new Error('Stored trade history requires repair; the saved data has been preserved.');
     }
+    if ((data.tradePlans !== undefined && (!Array.isArray(data.tradePlans) || data.tradePlans.length > 200 ||
+        !data.tradePlans.every(validSavedPlan) || new Set(data.tradePlans.map(p => p.id)).size !== data.tradePlans.length)) ||
+        [...data.positions, ...data.history].some(p => p.tradePlan && !validSavedPlan(p.tradePlan))) {
+      throw new Error('Stored share plans require repair; the saved portfolio has been preserved.');
+    }
     return {
       version: 2,
       balance: typeof data.balance === 'number' ? data.balance : DEFAULT_INITIAL_BALANCE,
       initialBalance: typeof data.initialBalance === 'number' ? data.initialBalance : DEFAULT_INITIAL_BALANCE,
       positions: Array.isArray(data.positions) ? data.positions : [],
-      history: Array.isArray(data.history) ? data.history : []
+      history: Array.isArray(data.history) ? data.history : [],
+      tradePlans: data.tradePlans || []
     };
   } catch (err) {
     return { ...structuredClone(DEFAULT_PORTFOLIO), storageError: err.message };
@@ -74,6 +83,72 @@ function persist(portfolio) {
   } catch (err) {
     return { success: false, message: err.message };
   }
+}
+
+function validSavedPlan(plan) {
+  try {
+    if (!plan || plan.version !== 1 || typeof plan.id !== 'string' || !plan.id ||
+        !/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/.test(plan.symbol) ||
+        typeof plan.savedAt !== 'string' || !Number.isFinite(Date.parse(plan.savedAt)) ||
+        !(plan.positionId === null || (typeof plan.positionId === 'string' && plan.positionId)) ||
+        !plan.inputs || !plan.scenario) return false;
+    const calculated = shareTradePlan(plan.inputs, Date.parse(plan.savedAt));
+    return calculated.quantity > 0 && Object.entries(calculated).every(([key, value]) => plan.scenario[key] === value);
+  } catch { return false; }
+}
+
+export function saveShareTradePlan(symbol, draft, now = Date.now()) {
+  const portfolio = getPortfolio();
+  if (portfolio.storageError) return {success:false, message:portfolio.storageError};
+  try {
+    if (typeof symbol !== 'string' || !/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/i.test(symbol)) throw new Error('Invalid ticker symbol.');
+    const scenario = shareTradePlan(draft, now);
+    if (scenario.quantity < 1) throw new Error('The entered budget cannot support one whole share.');
+    const inputs = Object.fromEntries(['entry','stop','target','capital','riskBudget','feeBps','slippageBps'].map(key => [key, Number(draft[key])]));
+    inputs.exitDate = draft.exitDate;
+    const duplicate = portfolio.tradePlans.find(p => p.symbol === symbol.toUpperCase() &&
+      marketDate(Date.parse(p.savedAt)) === marketDate(now) && JSON.stringify(p.inputs) === JSON.stringify(inputs));
+    if (duplicate) return {success:true, plan:duplicate, duplicate:true};
+    if (portfolio.tradePlans.length >= 200) throw new Error('The 200 saved-plan limit has been reached. Export a portfolio backup.');
+    const plan = {version:1, id:`plan-${crypto.randomUUID()}`, symbol:symbol.toUpperCase(),
+      savedAt:new Date(now).toISOString(), inputs, scenario, positionId:null};
+    portfolio.tradePlans.unshift(plan);
+    const failure = persist(portfolio);
+    return failure || {success:true, plan};
+  } catch (error) { return {success:false, message:error.message}; }
+}
+
+export function openPlannedPosition(planId, now = Date.now()) {
+  const portfolio = getPortfolio();
+  if (portfolio.storageError) return {success:false, message:portfolio.storageError};
+  const plan = portfolio.tradePlans.find(p => p.id === planId);
+  if (!plan) return {success:false, message:'Saved plan not found.'};
+  if (plan.positionId) return {success:false, message:'This saved plan has already opened a paper position.'};
+  if (!Number.isFinite(now)) return {success:false, message:'A valid simulated entry time is required.'};
+  if (marketDate(Date.parse(plan.savedAt)) !== marketDate(now)) return {success:false, message:'This plan was saved on an earlier day. Recalculate and save a new plan before opening it.'};
+  const cost = cents(plan.scenario.entryCost);
+  const stopValue = cents(plan.scenario.quantity * plan.scenario.stop * (1-plan.inputs.slippageBps/10000) * (1-plan.inputs.feeBps/10000));
+  if (cost > plan.inputs.capital || cents(cost-stopValue) > plan.inputs.riskBudget) return {success:false, message:'Cent rounding exceeds a saved planning limit. Adjust and save a new plan.'};
+  if (cost < .01 || cost > portfolio.balance) return {success:false, message:`Insufficient simulated cash. Required $${cost.toFixed(2)}; available $${portfolio.balance.toFixed(2)}.`};
+  const id = `pos-${crypto.randomUUID()}`;
+  plan.positionId = id;
+  const position = {id, symbol:plan.symbol, assetType:'Stock', entryPrice:plan.scenario.entry,
+    quantity:plan.scenario.quantity, totalCost:cost, stopLoss:plan.scenario.stop,
+    takeProfit:plan.scenario.target, entryDate:new Date(now).toISOString(),
+    reason:'Saved share plan; simulated entry at user-entered reference with modeled costs',
+    tradePlan:structuredClone(plan)};
+  portfolio.balance = cents(portfolio.balance-cost);
+  portfolio.positions.unshift(position);
+  const failure = persist(portfolio);
+  return failure || {success:true, position, remainingBalance:portfolio.balance};
+}
+
+export function plannedDeadline(position, now = Date.now()) {
+  const plan = position?.tradePlan;
+  if (!plan) return null;
+  const date = plan.scenario.exitDate;
+  const remaining = (Date.parse(date)-Date.parse(marketDate(now)))/86400000;
+  return {date, daysRemaining:remaining, kind:remaining < 0 ? 'overdue' : remaining === 0 ? 'due_today' : remaining <= 2 ? 'due_soon' : 'scheduled'};
 }
 
 /**
@@ -144,7 +219,7 @@ export function openPosition({
 /**
  * Closes an open position at the current market price.
  */
-export function closePosition(positionId, exitPrice) {
+export function closePosition(positionId, exitPrice, {now = Date.now(), priceSource = 'Observed daily close; freshness not verified'} = {}) {
   const portfolio = getPortfolio();
   if (portfolio.storageError) return { success: false, message: portfolio.storageError };
   const index = portfolio.positions.findIndex(p => p.id === positionId);
@@ -156,7 +231,10 @@ export function closePosition(positionId, exitPrice) {
   const pos = portfolio.positions[index];
   const closePrice = Number(exitPrice);
   if (!positive(closePrice) || closePrice > MAX_CASH) return { success: false, message: 'A positive observed exit price within the supported finite range is required' };
-  const exitValue = Number((pos.quantity * closePrice).toFixed(2));
+  if (!Number.isFinite(now) || now < Date.parse(pos.entryDate)) return {success:false, message:'The simulated exit time cannot precede entry.'};
+  const fee = pos.tradePlan ? pos.tradePlan.inputs.feeBps/10000 : 0;
+  const slip = pos.tradePlan ? pos.tradePlan.inputs.slippageBps/10000 : 0;
+  const exitValue = Number((pos.quantity * closePrice * (1-slip) * (1-fee)).toFixed(2));
   const pnlDollar = Number((exitValue - pos.totalCost).toFixed(2));
   const pnlPercent = pos.totalCost > 0 ? Number(((pnlDollar / pos.totalCost) * 100).toFixed(2)) : 0.0;
 
@@ -172,9 +250,14 @@ export function closePosition(positionId, exitPrice) {
     pnlDollar,
     pnlPercent,
     entryDate: pos.entryDate,
-    exitDate: new Date().toISOString(),
-    outcome: pnlDollar >= 0 ? 'WIN' : 'LOSS',
-    reason: pos.reason
+    exitDate: new Date(now).toISOString(),
+    outcome: pnlDollar > 0 ? 'WIN' : pnlDollar < 0 ? 'LOSS' : 'BREAKEVEN',
+    reason: pos.reason,
+    exitPriceSource: priceSource,
+    ...(pos.tradePlan ? {tradePlan:structuredClone(pos.tradePlan),
+      realizedR:pnlDollar/pos.tradePlan.scenario.plannedLoss,
+      exitDateMissed:marketDate(now) > pos.tradePlan.scenario.exitDate,
+      holdingDeadlineMissed:marketDate(now) > pos.tradePlan.scenario.deadline} : {})
   };
 
   portfolio.balance = Number((portfolio.balance + exitValue).toFixed(2));
@@ -212,7 +295,8 @@ export function resetPortfolio(startingCash = DEFAULT_INITIAL_BALANCE) {
     balance: Number(cash.toFixed(2)),
     initialBalance: Number(cash.toFixed(2)),
     positions: [],
-    history: []
+    history: [],
+    tradePlans: []
   };
   savePortfolio(fresh);
   return fresh;
@@ -231,8 +315,10 @@ export function calculatePortfolioStats(portfolio, livePricesMap = {}) {
   let totalOpenValue = 0;
 
   positions.forEach(pos => {
-    const livePrice = livePricesMap[pos.symbol] || pos.entryPrice;
-    const currentVal = pos.quantity * livePrice;
+    const livePrice = livePricesMap[pos.symbol];
+    const fee = pos.tradePlan ? pos.tradePlan.inputs.feeBps/10000 : 0;
+    const slip = pos.tradePlan ? pos.tradePlan.inputs.slippageBps/10000 : 0;
+    const currentVal = positive(livePrice) ? pos.quantity * livePrice * (1-slip) * (1-fee) : pos.totalCost;
     totalOpenCost += pos.totalCost;
     totalOpenValue += currentVal;
   });
@@ -346,7 +432,10 @@ export function exportPortfolioHistoryToCSV(portfolio) {
     'Net PnL ($)',
     'Return (%)',
     'Outcome',
-    'Strategy / Notes'
+    'Strategy / Notes',
+    'Planned Stop ($)', 'Planned Target ($)', 'Planned Exit Date', '14-Day Deadline',
+    'Fees Per Side (bps)', 'Slippage Per Side (bps)', 'Original Planned Loss ($)',
+    'Realized R', 'Exit Date Missed', 'Exit Price Source'
   ];
 
   const rows = history.map(t => [
@@ -363,7 +452,12 @@ export function exportPortfolioHistoryToCSV(portfolio) {
     t.pnlDollar !== undefined ? Number(t.pnlDollar).toFixed(2) : '0.00',
     t.pnlPercent !== undefined ? Number(t.pnlPercent).toFixed(2) : '0.00',
     `"${t.outcome || (t.pnlDollar >= 0 ? 'WIN' : 'LOSS')}"`,
-    `"${(t.reason || '').replace(/"/g, '""')}"`
+    `"${(t.reason || '').replace(/"/g, '""')}"`,
+    t.tradePlan?.scenario.stop ?? '', t.tradePlan?.scenario.target ?? '',
+    t.tradePlan?.scenario.exitDate ?? '', t.tradePlan?.scenario.deadline ?? '',
+    t.tradePlan?.inputs.feeBps ?? '', t.tradePlan?.inputs.slippageBps ?? '',
+    t.tradePlan?.scenario.plannedLoss ?? '', t.realizedR ?? '', t.exitDateMissed ?? '',
+    `"${(t.exitPriceSource || '').replace(/"/g, '""')}"`
   ]);
 
   const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
@@ -378,4 +472,14 @@ export function exportPortfolioHistoryToCSV(portfolio) {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   return true;
+}
+
+export function exportPaperPortfolioJSON() {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? JSON.stringify(DEFAULT_PORTFOLIO);
+  const url = URL.createObjectURL(new Blob([raw], {type:'application/json'}));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `kappa-paper-portfolio-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.append(anchor); anchor.click(); anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
 }

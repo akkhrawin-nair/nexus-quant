@@ -4,6 +4,8 @@ import { apiRequest, compareMacdStrength } from './lib/api'
 import { matchingAlerts } from './lib/alerts'
 import DataQualityNotice from './components/DataQualityNotice'
 import TradingChart from './components/TradingChart'
+import PaperDeadlineBanner from './components/PaperDeadlineBanner'
+import OptionPaperDeadlineBanner from './components/OptionPaperDeadlineBanner'
 import './App.css'
 import './Dashboard.css'
 
@@ -136,6 +138,8 @@ export default function Dashboard() {
       <section className="kappa-summary" aria-label="Market research summary">
         {[[label('Tracked assets','สินทรัพย์ที่ติดตาม'),feed.signals.length],[label('MACD above signal','MACD เหนือเส้นสัญญาณ'),bullishCount],[label('MACD at/below signal','MACD เท่ากับ/ต่ำกว่าเส้นสัญญาณ'),feed.signals.length-bullishCount],[label('Latest stored session','วันที่ข้อมูลล่าสุด'),latestDate || '—']].map(([name,value]) => <div key={name}><span>{name}</span><strong>{value}</strong></div>)}
       </section>
+      <PaperDeadlineBanner onReview={()=>setTool({kind:'paper'})}/>
+      <OptionPaperDeadlineBanner onReview={()=>setTool({kind:'options',focusJournal:true})}/>
       <nav className="kappa-tools" aria-label={label('Research tools','เครื่องมือวิจัย')}>{buttons.map(([kind,en,thai]) => <button key={kind} onClick={() => setTool({kind})}>{kind==='paper' ? <Briefcase size={15}/> : kind==='alerts' ? <Bell size={15}/> : kind==='education' ? <BookOpen size={15}/> : <BarChart3 size={15}/>} {label(en,thai)}</button>)}</nav>
       <div className="kappa-status" aria-live="polite">{notice}{busy && <p>{label('Fetching and saving observations. This may take a few minutes; provider failures will be reported.','กำลังดึงและบันทึกข้อมูล อาจใช้เวลาสักครู่ ระบบจะแสดงข้อผิดพลาดจากแหล่งข้อมูล')}</p>}</div>
       {feed.error && <div role="alert" className="kappa-error">{feed.error} {feed.signals.length>0 && label('Previous observations remain visible.','ยังแสดงข้อมูลที่บันทึกไว้ก่อนหน้า')}<button onClick={() => setRevision(n=>n+1)}>{label('Retry','ลองอีกครั้ง')}</button></div>}

@@ -46,14 +46,14 @@ def _store(cache, key, value):
         cache[key] = (time.monotonic(), value)
 
 
-def get_history(symbol, period='1y', interval='1d'):
+def get_history(symbol, period='1y', interval='1d', force_refresh=False):
     symbol = validate_symbol(symbol)
     if period not in {'5d', '1mo', '3mo', '6mo', '1y', '5y', '10y'} or interval not in {'1m', '5m', '15m', '1h', '1d', '1wk', '1mo'}:
         raise ValueError('Unsupported history period or interval.')
     key = (symbol, period, interval)
     with _lock:
         cached = HISTORY_CACHE.get(key)
-    if cached and time.monotonic() - cached[0] < 120:
+    if not force_refresh and cached and time.monotonic() - cached[0] < 120:
         return cached[1].copy()
     try:
         cache_path = str(settings.MARKET_CACHE_PATH)
@@ -68,6 +68,7 @@ def get_history(symbol, period='1y', interval='1d'):
         frame = frame[~frame.index.duplicated(keep='last')].sort_index()
         frame.attrs['data_quality'] = data_quality(SOURCE, 'available', _observed(frame),
             ['Adjusted historical bars; quotes may be delayed. Daily timestamps identify sessions, not quote times.'])
+        frame.attrs['data_quality']['retrieval_kind'] = 'provider_response'
         _store(HISTORY_CACHE, key, frame.copy())
         return frame
     except Exception as exc:
@@ -98,8 +99,10 @@ def get_quote(symbol):
                   'last_updated': _observed(frame),
                   'data_quality': data_quality(frame.attrs.get('data_quality', {}).get('source', SOURCE), 'stale', _observed(frame),
                       ['Latest available daily close; this is not a live executable quote.'])}
-        if frame.attrs.get('data_quality', {}).get('retrieved_at'):
-            result['data_quality']['retrieved_at'] = frame.attrs['data_quality']['retrieved_at']
+        result['data_quality']['retrieved_at'] = frame.attrs.get('data_quality', {}).get('retrieved_at')
+        result['data_quality']['retrieval_kind'] = frame.attrs.get('data_quality', {}).get('retrieval_kind')
+        if frame.attrs.get('data_quality', {}).get('stored_at'):
+            result['data_quality']['stored_at'] = frame.attrs['data_quality']['stored_at']
         _store(QUOTE_CACHE, symbol, result)
         return copy.deepcopy(result)
     if cached:

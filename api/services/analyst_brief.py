@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from .market_data import data_quality, validate_symbol
 from .research import candles, indicator_snapshot
+from .technical_outlook import technical_outlook
 
 
 def reviewed_context(symbol, today=None):
@@ -64,7 +65,7 @@ def technical_brief(symbol, frame, today=None):
     return {'symbol':symbol, 'as_of':str(frame.index[-1].date()), 'trend':trend, 'reading':reading,
         'indicators':{**snapshot, 'atr14':atr}, 'levels':{'support':support, 'resistance':resistance, 'near_high':near_high},
         'assessment':{'headline':headline,'interpretation':interpretation},
-        'candles':candles(view), 'overlays':overlays,
+        'candles':candles(view), 'overlays':overlays, 'outlook':technical_outlook(symbol,frame,today),
         'scenarios':[
             {'title':'Bullish confirmation to watch', 'condition':f'A daily close above EMA20 (${ema20:.4f}) and the prior-5-session high (${near_high:.4f}) with relative volume at least 1.25×. The wider 20-session high (${resistance:.4f}) is a separate reference, not a promised target. This is a heuristic, not a buy signal.',
              'invalidation':f'A failed recovery back below its entry reference weakens that thesis. A close below the prior-20-session low (${support:.4f}) is further contrary evidence; choose a separate executable stop in your broker.'},

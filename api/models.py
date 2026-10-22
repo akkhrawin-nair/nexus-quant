@@ -14,6 +14,7 @@ class MarketPrice(models.Model):
     macd = models.FloatField(db_column='MACD')
     macd_signal = models.FloatField(db_column='MACD_Signal')
     retrieved_at = models.DateTimeField(auto_now=True)
+    provider_retrieved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'MarketPrices'

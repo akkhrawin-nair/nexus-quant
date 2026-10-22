@@ -10,7 +10,7 @@ Tested with Python 3.14 and Node 24. Python requirements pin the versions used f
 python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 .\venv\Scripts\python.exe manage.py migrate
-.\venv\Scripts\python.exe manage.py fetch_market_data --symbols QQQ SPY
+.\venv\Scripts\python.exe manage.py fetch_market_data --symbols QQQ SPY EOSE ONDS
 .\venv\Scripts\python.exe manage.py runserver 127.0.0.1:8001
 ```
 
@@ -24,14 +24,33 @@ npm run dev
 
 Open **http://127.0.0.1:5173**. Add tickers or use **Sync market data** to save the default watchlist. An empty fresh database displays an explicit empty state. Data fetches need internet access; failures are reported, and saved observations remain available. Refreshing the page polls saved records; **Sync market data** actually refreshes provider observations.
 
+For cloning/updating on another PC, a larger starter watchlist and browser-data
+transfer limits, see [Windows PC setup](docs/windows-pc-setup.md).
+
 SQLite is the default and needs no SQL Server installation. Configuration examples are in `.env.example` and `frontend/.env.example`. The frontend reads `VITE_API_BASE_URL` when overridden. Both startup instructions and defaults use backend port **8001**.
 
 ## What the application does
 
 - **Analyst desk** combines annotated daily candles, EMA20/50, prior-20-session range references, dated issuer-news notes, bull/bear cases, known catalyst dates, and a long-share scenario calculator. Start with EOSE or ONDS, or use each card's **Analyze** button. Reviewed issuer context is currently maintained for those two names only, with a visible review date and an overdue flag after seven days. Other tickers receive technical analysis and retrieved headlines without invented issuer coverage. See [analyst desk methodology](docs/analyst-desk.md).
 
+  **Future outlook** extends the chart beyond the last candle with a dashed 14-calendar-day trend estimate and upper/lower volatility scenarios. A shaded projection area, numeric price table, observation age, expired-window warning and fixed-rule historical error comparison with an unchanged-price baseline distinguish estimates from actual candles. Scenarios are not calibrated confidence bounds or validated trading recommendations; exchange holidays are not modeled.
+
+  **Forecast journal** saves the original projection and actual save time in this browser. After the target date ends, **Check loaded data** records an exact-date close and compares forecast error with the unchanged-price baseline. Duplicate saves cannot replace originals; missing dates remain unscored. Export all tickers to JSON before clearing browser storage. Maximum 200 records; no cloud backup, import or background checking.
+
+  **Saved share plans** preserves calculated entry/stop/target, whole-share size, costs and exit deadline. Open each plan once, on its saved New York date, using paper cash and modeled entry/exit costs. Record an assumed exit to see net P&L and realized R against the original planned loss. Dashboard deadline notices link to the shared Paper portfolio; no automatic exit runs. JSON backup preserves all plans/positions/history and closed-history CSV includes plan metrics.
+
+  **Refresh ticker prices** in the Analyst desk bypasses the short history cache and preserves saved journals. Observation date, provider-response receipt time and database save time are separate; legacy provider times remain unknown until a new fetch. A successful refresh can still return the same session and remains daily historical data. Age/expired-window notices and explicit failure messages keep old reports identifiable. Price refresh does not update the manually reviewed news notes. Existing checkouts must run `manage.py migrate` for the added nullable provider timestamp.
+
 - Watches stocks, ETFs, crypto and commodities with source/session labels, search, sorting, favorites, CSV export, and a heatmap.
 - **Options bid / ask** calculates manual buy-at-ask and sell-at-bid estimates, fees, spread costs, and the future exit bid needed to break even. Review checks compare entered quote sizes with quantity, premium cost with your budget, and spread percentage with your editable threshold (initially 10%, not a recommendation). Enter the source quote time in the shown browser timezone; a quote older than 60 seconds is flagged. Live freshness and liquidity remain unverified. Expiration is restricted to today through 14 calendar days ahead using the New York date. The exit-plan check flags dates outside expiration or the 14-day window from assumed entry today. This calculator does not save/monitor actual positions, enforce broker exits, or place orders.
+
+  **Compare and save broker quotes** adds two named manual snapshots. It blocks combined differences for mismatched entered contract terms or missing deliverable confirmation, separates premium/cost/fee differences, and shows source-time gaps and aging. Immutable browser-local history supports JSON export, up to 200 comparisons. It makes no provider/broker requests; entered sources, deliverables and fills remain unverified.
+
+  **Broker order-ticket check** optionally reconciles an independently copied USD buy-to-open limit-order preview with either quote snapshot. It compares contract terms and quantity, limit debit, total fees and broker-displayed debit; flags time gaps, budget/cap overruns and invalid exit dates; and saves original inputs with comparison history. It does not verify available cash, live prices or execution and sends no orders.
+
+  **Execution reconciliation** attaches individual user-reported executions to saved order previews, supports partial quantity, weights fill prices and reconciles per-execution fees/debits against the original limit and selected ask reference. Duplicate labels are skipped, conflicting reuse/excess quantity is rejected, and adverse reports remain flagged. Real and broker-paper reports are counted separately; nothing is independently broker-verified. Export preserves execution inputs and source/recording times. Use existing confirmations or broker-paper records; no new real-money trade is required.
+
+  **Options paper journal** saves long call/put tickets with original ask-based entry costs and quote provenance, after entered freshness/budget/date/spread checks. Record a later positive option bid and exit fees to calculate net paper P&L, or explicitly record an unverified zero-recovery assumption. Dashboard notices flag planned exits and expiration; no automatic closing or expiry pricing runs. Set a combined open-premium cap alongside per-ticket budgets. The outcome review shows fee-aware results, sample counts and deadline checks. Export all records as JSON; restore with preview, duplicate protection and conflict rejection. Makes no broker/order requests.
 - Computes EMA, MACD, simple rolling RSI, relative volume, and a descriptive five-rule checklist. Scores do not represent win probabilities.
 - Backtests long-only MACD/EMA/confluence rules on observed adjusted OHLCV with next-open fills, fees, slippage, and conservative daily-bar stop/target ordering.
 - **Backtest → 70/30 holdout check** selects MACD, EMA, confluence, or cash using the earliest 70% of bars, then evaluates only the final 30% without refitting. Shows the same-date, same-cost buy-and-hold reference, drawdowns, sample size, and training selection. Strategy positions have a 14-calendar-day cap using the observed session calendar (missing bars can bias scheduling); passive buy-and-hold is an unrestricted reference. At least 150 unique daily bars are required. Defaults are 10 bps fees and 5 bps slippage per side, both editable. A positive comparison is hypothetical, not proof of a profitable live strategy; repeatedly choosing tickers or revising rules after seeing holdout results can overfit it.

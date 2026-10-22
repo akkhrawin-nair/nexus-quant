@@ -2,14 +2,24 @@
 
 ## Current status
 
-KAPPA has no connected live options feed. The new readiness command checks only
-whether credential variables exist locally. It makes no network requests, verifies
-no subscription, and cannot turn on live prices. Options recommendations remain
-unavailable until a real quote integration is implemented and verified.
+Checked October 22, 2026. KAPPA has an optional read-only Alpaca OPRA adapter,
+but this account's previously tested OPRA request was denied. No live Webull
+quote connector is implemented. The readiness command below checks only whether
+Webull credential variables exist locally: no network request, entitlement check
+or live-price verification is performed. Provider access must be verified before
+calling a quote feed connected.
 
 The intended workflow is US options with expiration within 14 calendar days and
-positions held no longer than 14 calendar days. Those rules are a subsequent
-implementation step; this setup check does not enforce them.
+positions held no longer than 14 calendar days. Calculator and paper-journal
+date checks implement that window; broker positions and exits remain outside
+KAPPA's control. This setup command does not enforce trading rules.
+
+Webull Thailand's [options documentation](https://developer.webull.co.th/apis/docs/trade-api/option/)
+states that API options data requires a paid market-data subscription. Its
+[market-data FAQ](https://developer.webull.co.th/apis/docs/market-data-api/faq/)
+states that app/desktop subscriptions are separate from OpenAPI. No subscription
+has been purchased. Manual broker snapshots and execution reports remain
+user-entered evidence, not an authenticated live feed.
 
 ## Account steps
 

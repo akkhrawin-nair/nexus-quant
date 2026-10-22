@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ToolModal } from './ResearchTools'
 import { optionEstimate, reviewOptionEstimate } from '../lib/options'
 import { apiRequest } from '../lib/api'
+import OptionQuoteComparison from './OptionQuoteComparison'
+import OptionPaperJournal from './OptionPaperJournal'
 
 const usd = value => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2}).format(value)
 const quoteFields = new Set(['symbol','type','strike','expiration','bid','ask','quoteTime','bidSize','askSize'])
@@ -10,7 +12,7 @@ const localTime = value => {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,19)
 }
 
-export default function OptionsQuoteTool({ onClose }) {
+export default function OptionsQuoteTool({ onClose, focusJournal=false }) {
   const [form, setForm] = useState({symbol:'', type:'call', strike:'', expiration:'', bid:'', ask:'', contracts:'1', multiplier:'100', fee:'0', quoteTime:'', bidSize:'', askSize:'', budget:'', maxSpreadPct:'10', plannedExit:''})
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
@@ -19,6 +21,8 @@ export default function OptionsQuoteTool({ onClose }) {
   const [fetching, setFetching] = useState(false)
   const [quoteError, setQuoteError] = useState('')
   const pending = useRef(null)
+  const journalRef = useRef(null)
+  useEffect(()=>{if(focusJournal)journalRef.current?.scrollIntoView({block:'start'})},[focusJournal])
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(timer) }, [])
   useEffect(() => () => pending.current?.abort(), [])
@@ -58,8 +62,10 @@ export default function OptionsQuoteTool({ onClose }) {
   if (review && result.quote) review.checks[0] = {id:'source', label:'Quote source', status:'unverified', detail:`Alpaca OPRA snapshot for ${result.quote.contract}. Bid/ask and timestamp retrieved from provider; Dime fills, contract multiplier, and session remain unverified.`}
   const stale = estimate && now - estimate.quoteTime > 60000
   return <ToolModal title="Options bid / ask calculator" onClose={onClose}>
-    <div className="data-quality-notice"><strong>{providerQuote ? 'Alpaca OPRA snapshot · Not a guaranteed fill' : 'Manual mode · Provider connection available below'}</strong>
-      <span>Keep trading in Dime. Load an exact-contract quote, or copy bid and ask from the same Dime/Webull contract at the same time.</span></div>
+    <div className="data-quality-notice"><strong>{providerQuote ? 'Alpaca OPRA snapshot · Not a guaranteed fill' : 'Manual mode · No provider quote loaded'}</strong>
+      <span>Check your broker directly. Load an exact-contract quote with authorized data access, or copy bid and ask from the same Dime/Webull contract at the same time.</span></div>
+    <OptionQuoteComparison/>
+    <button type="button" onClick={()=>journalRef.current?.scrollIntoView({block:'start'})}>Options paper journal</button>
     <div className="research-controls">
       <label>Exact OCC contract symbol<input value={contract} placeholder="e.g. AAPL261030C00250000" maxLength={21} onChange={event => {cancelFetch(); setContract(event.target.value); setProviderQuote(null); setResult(null); setQuoteError('')}}/></label>
       <button type="button" disabled={fetching || !contract.trim()} onClick={loadQuote}>{fetching ? 'Loading OPRA quote…' : 'Load OPRA quote'}</button>
@@ -67,14 +73,14 @@ export default function OptionsQuoteTool({ onClose }) {
     <p>Requires Alpaca API credentials and OPRA data access. Free indicative prices are never substituted. Copy the exact contract identifier from your broker; verify its deliverable and multiplier.</p>
     {quoteError && <p className="research-error" role="alert">{quoteError}</p>}
     {providerQuote && <p role="status">{providerQuote.contract} · Source quote: {new Date(providerQuote.quote_time).toLocaleString()} · {now - Date.parse(providerQuote.quote_time) > 60000 ? 'OLD QUOTE — refresh before comparing prices.' : 'Provider snapshot loaded; refresh to request a new snapshot.'} Editing quote fields switches back to manual mode.</p>}
-    <form onSubmit={calculate}>
+    <form aria-label="Options entry calculator" onSubmit={calculate}>
       <div className="research-controls">
         {field('symbol', 'Underlying ticker', {maxLength:15, placeholder:'e.g. AAPL'})}
         <label>Option type<select value={form.type} onChange={event => change('type', event.target.value)}><option value="call">Call</option><option value="put">Put</option></select></label>
         {field('strike', 'Strike ($)', {type:'number', min:'0.0001', step:'any'})}
         {field('expiration', 'Expiration (US date)', {type:'date'})}
       </div>
-      <p>Expiration must be within 14 calendar days, using the New York market date. This calculator does not track positions or enforce a holding deadline.</p>
+      <p>Expiration must be within 14 calendar days, using the New York market date. The paper journal below can save this ticket and show deadline notices; broker exits remain manual.</p>
       <div className="research-controls">
         {field('bid', 'Bid — sell reference ($)', {type:'number', min:'0', step:'any'})}
         {field('ask', 'Ask — buy reference ($)', {type:'number', min:'0.0001', step:'any'})}
@@ -127,5 +133,6 @@ export default function OptionsQuoteTool({ onClose }) {
       <p>Break-even is the future option bid needed to cover the ask-based entry and entered fees on both sides, not the underlying stock’s expiration break-even. Round it to a broker-permitted price increment. Additional fees or slippage increase the required price.</p>
       <p>Quote sizes are manually entered; liquidity, market hours, and broker permissions are unverified. A limit price controls your acceptable price but does not guarantee execution.</p>
     </section>}
+    <div ref={journalRef} style={{scrollMarginTop:110}}><OptionPaperJournal ticket={result}/></div>
   </ToolModal>
 }

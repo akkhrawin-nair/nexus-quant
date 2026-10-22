@@ -71,6 +71,26 @@ class AnalystBriefView(ResearchView):
         return Response(technical_brief(symbol,frame), headers={'Cache-Control':'no-store'})
 
 
+class RefreshAnalystBriefView(ResearchView):
+    throttle_scope = 'ingestion'
+
+    def post(self, request):
+        from api.services.analyst_brief import technical_brief
+        symbol = md.validate_symbol(request.data.get('symbol'))
+        if not _ingestion_lock.acquire(blocking=False):
+            return Response({'error':'A market-data refresh is already running. Retry shortly.'}, status=409)
+        try:
+            result = ingest_market_data({symbol:asset_type(symbol)}, force_refresh=True)
+            if result['failed']:
+                raise Unavailable('Provider refresh failed. Existing saved observations remain available; retry later.')
+            frame = stored_history(symbol)
+            if len(frame) < 60:
+                raise Unavailable('Refresh returned fewer than 60 daily observations. A complete analyst brief is unavailable.')
+            return Response(technical_brief(symbol,frame), headers={'Cache-Control':'no-store'})
+        finally:
+            _ingestion_lock.release()
+
+
 def required_history(symbol, period='1y', interval='1d'):
     frame = md.get_history(md.validate_symbol(symbol), period=period, interval=interval)
     if frame.empty:
