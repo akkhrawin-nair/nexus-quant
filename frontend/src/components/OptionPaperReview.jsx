@@ -12,10 +12,10 @@ export default function OptionPaperReview({positions,now}) {
     ['Modeled fees on closed records',usd(review.closedFees)]]
   return <section className="option-paper-card" aria-label="Options paper outcome review">
     <h4>Review your recorded outcomes</h4>
-    <p>Sample: <strong>{review.closed} recorded outcome(s)</strong> from all saved records, including those beyond the latest 20 cards below. Open positions are excluded from performance results.</p>
+    <p>Sample: <strong>{review.closed} fully closed record(s)</strong> from all saved records, including those beyond the latest 20 cards below. Partial exits on still-open records are excluded here and included in the journal’s overall recorded P&amp;L above.</p>
     {!review.closed && <p>No outcomes recorded yet. Percentage and average results will appear after you record an outcome.</p>}
     <dl className="research-metrics">{metrics.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-    <p><strong>Outcome sources:</strong> {review.bidReferences} assumed bid-reference exit(s); {review.zeroRecovery} explicit zero-recovery assumption(s). Both are included in the totals above. None are verified broker fills or settlement results.</p>
+    <p><strong>Outcome sources:</strong> {review.bidReferences} closed record(s) include bid-reference exits; {review.zeroRecovery} include zero-recovery assumptions. Mixed records count in both categories, while net P&amp;L counts each exit once. None are verified broker fills or settlement results.</p>
     <p><strong>Recorded deadline checks:</strong> {review.missedPlannedExit} / {review.closed} missed their planned exit date; {review.missedDeadline} / {review.closed} exceeded the latest allowed date. These counts can overlap. They use the assumed exit date, not the date a historical quote was recorded.</p>
     <p><strong>Open records needing review:</strong> {review.openPastPlannedExit} past their planned exit date; {review.openExpired} past expiration. These counts can overlap and are not assigned a profit or loss.</p>
     <details className="option-paper-limits"><summary>How to read these results</summary>

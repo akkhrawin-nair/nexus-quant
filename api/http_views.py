@@ -1,5 +1,6 @@
 """HTTP adapters for observed-data research services."""
 import logging
+import re
 import threading
 
 import pandas as pd
@@ -282,6 +283,12 @@ class PaperTradingView(ResearchView):
     post = get
 
 
+class ReviewedCatalystsView(ResearchView):
+    def get(self, request):
+        from api.services.analyst_brief import catalyst_calendar
+        return Response(catalyst_calendar())
+
+
 class HistoricalBacktestView(ResearchView):
     def get(self, request):
         params = request.query_params
@@ -296,8 +303,18 @@ class HistoricalBacktestView(ResearchView):
         if strategy not in {'MACD', 'EMA', 'CONFLUENCE'}:
             raise ValueError('Supported strategies: MACD, EMA, CONFLUENCE.')
         mode = params.get('validation', 'full')
-        if mode not in {'full','holdout'}:
-            raise ValueError('Supported validation modes: full, holdout.')
+        if mode not in {'full','holdout','fixed','fixed_holdout'}:
+            raise ValueError('Supported validation modes: full, holdout, fixed, fixed_holdout.')
+        if mode in {'fixed','fixed_holdout'}:
+            if not re.fullmatch(r'[A-Z]{1,10}(?:[.-][A-Z])?', symbol):
+                raise ValueError('The fixed stock protocol supports letter-based share tickers and single-letter share classes, not currency pairs, crypto, indices or futures.')
+            from api.services.backtesting import fixed_strategy_backtest
+            if mode == 'fixed_holdout':
+                from api.services.strategy_validation import validate_fixed_strategy
+                return Response({'symbol':symbol, **validate_fixed_strategy(
+                    required_history(symbol, period), capital, fee, slippage)})
+            return Response({'symbol': symbol, **fixed_strategy_backtest(
+                required_history(symbol, period), capital, fee, slippage)})
         if mode == 'holdout':
             from api.services.strategy_validation import validate_strategy
             return Response({'symbol':symbol, **validate_strategy(required_history(symbol, period), capital, fee, slippage)})

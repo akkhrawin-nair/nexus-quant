@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ToolModal } from './ResearchTools'
 import { optionEstimate, reviewOptionEstimate } from '../lib/options'
 import { apiRequest } from '../lib/api'
 import OptionQuoteComparison from './OptionQuoteComparison'
 import OptionPaperJournal from './OptionPaperJournal'
+import OptionModelRisk from './OptionModelRisk'
+import { OPTION_PANELS, optionPanelForKey, fillOptionContract } from '../lib/optionWorkspace'
+import { confirmOptionContract } from '../lib/optionContract'
+import './OptionsWorkspace.css'
 
 const usd = value => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2}).format(value)
 const quoteFields = new Set(['symbol','type','strike','expiration','bid','ask','quoteTime','bidSize','askSize'])
@@ -21,12 +25,27 @@ export default function OptionsQuoteTool({ onClose, focusJournal=false }) {
   const [fetching, setFetching] = useState(false)
   const [quoteError, setQuoteError] = useState('')
   const pending = useRef(null)
-  const journalRef = useRef(null)
-  useEffect(()=>{if(focusJournal)journalRef.current?.scrollIntoView({block:'start'})},[focusJournal])
+  const [panel,setPanel]=useState(()=>focusJournal ? 'journal' : 'plan')
+  const [contractError,setContractError]=useState(''), [contractMessage,setContractMessage]=useState('')
+  const tabRefs=useRef({}), workspaceId=useId()
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(timer) }, [])
   useEffect(() => () => pending.current?.abort(), [])
   const cancelFetch = () => { pending.current?.abort(); setFetching(false) }
+  const activate=(next,focus=false)=>{
+    setPanel(next)
+    const tab=tabRefs.current[next]
+    if(tab)tab.closest('dialog').scrollTop=0
+    if(focus)tab?.focus()
+  }
+  const importContract=()=>{
+    setContractError('');setContractMessage('')
+    try{
+      const imported=fillOptionContract(form,contract)
+      cancelFetch();setForm(imported.form);setContract(imported.contractSymbol);setProviderQuote(null);setResult(null);setError('');setQuoteError('')
+      setContractMessage('Contract fields filled. Previous prices and quote times were cleared; copy a fresh quote for this contract. Verify the multiplier and deliverable in Dime.')
+    }catch(failure){setContractError(failure.message)}
+  }
   const change = (key, value) => {
     cancelFetch()
     if (quoteFields.has(key)) setProviderQuote(null)
@@ -52,6 +71,7 @@ export default function OptionsQuoteTool({ onClose, focusJournal=false }) {
     try {
       const time = Date.now()
       const estimate = optionEstimate({...form, quoteTime:providerQuote?.quote_time || form.quoteTime}, time)
+      if(contract.trim())confirmOptionContract(contract,estimate)
       reviewOptionEstimate(estimate, form, time)
       setResult({estimate, plan:{...form}, quote:providerQuote}); setNow(time); setError('')
     }
@@ -61,26 +81,44 @@ export default function OptionsQuoteTool({ onClose, focusJournal=false }) {
   const review = result ? reviewOptionEstimate(estimate, result.plan, now) : null
   if (review && result.quote) review.checks[0] = {id:'source', label:'Quote source', status:'unverified', detail:`Alpaca OPRA snapshot for ${result.quote.contract}. Bid/ask and timestamp retrieved from provider; Dime fills, contract multiplier, and session remain unverified.`}
   const stale = estimate && now - estimate.quoteTime > 60000
-  return <ToolModal title="Options bid / ask calculator" onClose={onClose}>
+  const labels={plan:'Plan an option',compare:'Compare broker quotes',journal:'Paper journal'}
+  const navigation=<nav className="options-workspace-tabs" role="tablist" aria-label="Options workspace">
+    {OPTION_PANELS.map((name,index)=><button key={name} type="button" role="tab" id={`${workspaceId}-tab-${name}`} aria-controls={`${workspaceId}-panel-${name}`} aria-selected={panel===name} tabIndex={panel===name ? 0 : -1} ref={node=>{tabRefs.current[name]=node}} onClick={()=>activate(name)} onKeyDown={event=>{const next=optionPanelForKey(event.key,name);if(next){event.preventDefault();activate(next,true)}}}><span aria-hidden="true">0{index+1}</span>{labels[name]}</button>)}
+  </nav>
+  return <ToolModal title="Options workspace" onClose={onClose} headerContent={navigation}>
+    <p className="options-workspace-hint">Inputs stay when you switch sections. Closing this workspace clears unsaved inputs; saved records stay in this browser.</p>
+    <section role="tabpanel" tabIndex={0} id={`${workspaceId}-panel-plan`} aria-labelledby={`${workspaceId}-tab-plan`} hidden={panel!=='plan'}>
+    <div className="options-workspace-intro"><h3>Plan an option</h3><p>Start with the exact contract, check its bid/ask and costs, then review a paper entry. Broker orders stay in Dime.</p></div>
     <div className="data-quality-notice"><strong>{providerQuote ? 'Alpaca OPRA snapshot · Not a guaranteed fill' : 'Manual mode · No provider quote loaded'}</strong>
       <span>Check your broker directly. Load an exact-contract quote with authorized data access, or copy bid and ask from the same Dime/Webull contract at the same time.</span></div>
-    <OptionQuoteComparison/>
-    <button type="button" onClick={()=>journalRef.current?.scrollIntoView({block:'start'})}>Options paper journal</button>
+    <section className="options-contract-import" aria-label="Fill contract identity">
+    <h3>Copy your contract once</h3>
     <div className="research-controls">
-      <label>Exact OCC contract symbol<input value={contract} placeholder="e.g. AAPL261030C00250000" maxLength={21} onChange={event => {cancelFetch(); setContract(event.target.value); setProviderQuote(null); setResult(null); setQuoteError('')}}/></label>
+      <label>Exact OCC contract symbol<input value={contract} placeholder="e.g. AAPL261030C00250000" maxLength={21} onChange={event => {cancelFetch(); setContract(event.target.value); setProviderQuote(null); setResult(null); setQuoteError('');setContractError('');setContractMessage('')}}/></label>
+      <button type="button" disabled={!contract.trim()} onClick={importContract}>Fill contract fields</button>
+    </div>
+    <p>Fills ticker, call/put, strike and expiration from a standard option identifier. Quotes are cleared when you fill a contract. Multiplier and deliverable still need checking in your broker.</p>
+    {contractError && <p className="research-error" role="alert">{contractError}</p>}
+    {contractMessage && <p role="status">{contractMessage}</p>}
+    </section>
+    <details className="options-provider-setup"><summary>Optional provider quote connection</summary>
+    <div className="research-controls">
       <button type="button" disabled={fetching || !contract.trim()} onClick={loadQuote}>{fetching ? 'Loading OPRA quote…' : 'Load OPRA quote'}</button>
     </div>
     <p>Requires Alpaca API credentials and OPRA data access. Free indicative prices are never substituted. Copy the exact contract identifier from your broker; verify its deliverable and multiplier.</p>
     {quoteError && <p className="research-error" role="alert">{quoteError}</p>}
     {providerQuote && <p role="status">{providerQuote.contract} · Source quote: {new Date(providerQuote.quote_time).toLocaleString()} · {now - Date.parse(providerQuote.quote_time) > 60000 ? 'OLD QUOTE — refresh before comparing prices.' : 'Provider snapshot loaded; refresh to request a new snapshot.'} Editing quote fields switches back to manual mode.</p>}
+    </details>
     <form aria-label="Options entry calculator" onSubmit={calculate}>
+      <h3>1 · Contract</h3>
       <div className="research-controls">
         {field('symbol', 'Underlying ticker', {maxLength:15, placeholder:'e.g. AAPL'})}
         <label>Option type<select value={form.type} onChange={event => change('type', event.target.value)}><option value="call">Call</option><option value="put">Put</option></select></label>
         {field('strike', 'Strike ($)', {type:'number', min:'0.0001', step:'any'})}
         {field('expiration', 'Expiration (US date)', {type:'date'})}
       </div>
-      <p>Expiration must be within 14 calendar days, using the New York market date. The paper journal below can save this ticket and show deadline notices; broker exits remain manual.</p>
+      <p>Expiration must be within 14 calendar days, using the New York market date. The Paper journal section can save this ticket and show deadline notices; broker exits remain manual.</p>
+      <h3>2 · Quote and costs</h3>
       <div className="research-controls">
         {field('bid', 'Bid — sell reference ($)', {type:'number', min:'0', step:'any'})}
         {field('ask', 'Ask — buy reference ($)', {type:'number', min:'0.0001', step:'any'})}
@@ -97,6 +135,7 @@ export default function OptionsQuoteTool({ onClose, focusJournal=false }) {
         {field('fee', 'Fees per contract, per side ($)', {type:'number', min:'0', max:'10000', step:'any'})}
       </div>
       <p>Standard equity options commonly use 100. Verify the actual multiplier and fees in Webull, especially for adjusted contracts. Fees default to zero; enter your charges.</p>
+      <h3>3 · Budget and exit</h3>
       <div className="research-controls">
         {field('budget', 'Maximum premium budget ($)', {type:'number', min:'0', max:'1000000000', step:'any'})}
         {field('maxSpreadPct', 'Your maximum spread (% of midpoint)', {type:'number', min:'0', max:'200', step:'any'})}
@@ -132,7 +171,16 @@ export default function OptionsQuoteTool({ onClose, focusJournal=false }) {
       <p>Buy = ask × multiplier × contracts + fees. Sell = bid × multiplier × contracts − fees. Round trip assumes unchanged quotes and includes fees on both sides; it is not a forecast or realized P&amp;L.</p>
       <p>Break-even is the future option bid needed to cover the ask-based entry and entered fees on both sides, not the underlying stock’s expiration break-even. Round it to a broker-permitted price increment. Additional fees or slippage increase the required price.</p>
       <p>Quote sizes are manually entered; liquidity, market hours, and broker permissions are unverified. A limit price controls your acceptable price but does not guarantee execution.</p>
+      <button type="button" className="options-primary-action" onClick={()=>activate('journal',true)}>Review this ticket in paper journal</button>
+      <OptionModelRisk key={JSON.stringify(result.plan)} ticket={result} now={now}/>
     </section>}
-    <div ref={journalRef} style={{scrollMarginTop:110}}><OptionPaperJournal ticket={result}/></div>
+    </section>
+    <section role="tabpanel" tabIndex={0} id={`${workspaceId}-panel-compare`} aria-labelledby={`${workspaceId}-tab-compare`} hidden={panel!=='compare'}>
+      <div className="options-workspace-intro"><h3>Compare broker quotes</h3><p>Check exact-contract quote differences and broker order totals. Your comparison inputs stay here when you switch sections.</p></div>
+      <OptionQuoteComparison/>
+    </section>
+    <section role="tabpanel" tabIndex={0} id={`${workspaceId}-panel-journal`} aria-labelledby={`${workspaceId}-tab-journal`} hidden={panel!=='journal'}>
+      <OptionPaperJournal ticket={result}/>
+    </section>
   </ToolModal>
 }

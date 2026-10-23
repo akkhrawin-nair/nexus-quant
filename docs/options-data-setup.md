@@ -313,3 +313,28 @@ quote verification remains unavailable. Manual broker quote/execution samples
 can validate arithmetic, identities and record handling, but are not a live feed
 or independently authenticated execution record. No software-only rating can
 substitute for that missing validation.
+
+## Options workspace navigation
+
+The options dialog now has three keyboard-accessible sections: **Plan an option**,
+**Compare broker quotes**, and **Paper journal**. Tabs remain visible in the
+sticky modal header. Left/Right arrows wrap between tabs; Home/End select the
+first/last tab. Switching sections preserves unsaved form inputs and current
+calculations while the workspace stays open. Closing it clears unsaved drafts;
+saved browser journals/comparisons remain unchanged.
+
+In **Plan an option**, copy a standard OCC identifier and choose **Fill contract
+fields**. This validates the 14-calendar-day expiration window using New York
+dates and fills ticker, call/put, strike and expiration. Old bid, ask, displayed
+sizes and quote timestamp are deliberately cleared. Quantity, fees, multiplier,
+budget, spread limit and planned exit stay as entered and must be rechecked for
+the new contract. No quote is fetched and no multiplier is inferred. A supplied
+identifier must also agree with the final manually edited fields when calculating.
+
+Provider quote access is in a separate optional disclosure. Manual calculations
+do not need it. After calculating, **Review this ticket in paper journal** opens
+the journal section with the exact ticket; an entry is not created automatically.
+The dashboard's deadline shortcut also selects the journal directly. Existing
+storage keys and legacy records remain readable. Partial exits, monitoring,
+model scenarios and the backup center are described in
+[the research workflow guide](research-workflow.md). Broker limitations remain.

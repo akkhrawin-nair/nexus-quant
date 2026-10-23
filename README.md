@@ -44,6 +44,8 @@ SQLite is the default and needs no SQL Server installation. Configuration exampl
 - Watches stocks, ETFs, crypto and commodities with source/session labels, search, sorting, favorites, CSV export, and a heatmap.
 - **Options bid / ask** calculates manual buy-at-ask and sell-at-bid estimates, fees, spread costs, and the future exit bid needed to break even. Review checks compare entered quote sizes with quantity, premium cost with your budget, and spread percentage with your editable threshold (initially 10%, not a recommendation). Enter the source quote time in the shown browser timezone; a quote older than 60 seconds is flagged. Live freshness and liquidity remain unverified. Expiration is restricted to today through 14 calendar days ahead using the New York date. The exit-plan check flags dates outside expiration or the 14-day window from assumed entry today. This calculator does not save/monitor actual positions, enforce broker exits, or place orders.
 
+  The workspace separates **Plan an option**, **Compare broker quotes** and **Paper journal** into sticky keyboard-accessible tabs. Switching preserves draft inputs while the dialog stays open. **Fill contract fields** imports a standard identifier and clears old quotes/timestamps without inferring multiplier or fees. After calculation, review the same ticket directly in the journal. Optional provider setup stays collapsed for the manual workflow.
+
   **Compare and save broker quotes** adds two named manual snapshots. It blocks combined differences for mismatched entered contract terms or missing deliverable confirmation, separates premium/cost/fee differences, and shows source-time gaps and aging. Immutable browser-local history supports JSON export, up to 200 comparisons. It makes no provider/broker requests; entered sources, deliverables and fills remain unverified.
 
   **Broker order-ticket check** optionally reconciles an independently copied USD buy-to-open limit-order preview with either quote snapshot. It compares contract terms and quantity, limit debit, total fees and broker-displayed debit; flags time gaps, budget/cap overruns and invalid exit dates; and saves original inputs with comparison history. It does not verify available cash, live prices or execution and sends no orders.
@@ -103,3 +105,25 @@ Keep this personal-use server on localhost. Production deployment, authenticatio
 For SQL Server, install `requirements-mssql.txt` and use explicit environment configuration. Existing legacy `MarketPrices` tables require schema review and a separate data-migration plan; do not blindly use `--fake-initial`. No existing SQL Server data is removed by the SQLite default.
 
 The `newpulse/` RSS experiment and inventory example scripts are independent of the main KAPPA application.
+
+## Fixed stock research protocol
+
+Open **Backtest** for **Fixed-rule 70/30 historical holdout**, which evaluates
+later observations without rule selection/refitting, compares cash and whole-share
+buy-and-hold, and shows a predetermined higher-cost scenario. Download its JSON
+to preserve exact input bars, parameters and results. Full-sample exploration is
+available under **Fixed stock protocol v1 (exploratory)**. The protocol's
+versioned rules are shown with every result: whole shares, 1% cost-aware planned
+stop risk, 20% entry-cost cap, 7.5% stop, 15% target, and at most 14 calendar days.
+These are unvalidated paper research rules, not broker-verified risk limits or
+evidence of profitability. The legacy 70/30 rule-selection mode uses different
+sizing and does not validate this protocol. See [the full protocol](docs/strategy-protocol-v1.md).
+
+## Daily research and options workflow
+
+Use **Daily brief** for saved-observation dates, paper deadlines and sourced
+catalysts; **Backups** exports/restores all five research datasets. The options
+workspace now includes Dime-labelled evidence, theoretical Greeks/IV scenarios,
+manual bid monitoring and partial paper exits. Sources and broker records remain
+unverified; no model value becomes an executable price. See
+[workflow details and limits](docs/research-workflow.md).

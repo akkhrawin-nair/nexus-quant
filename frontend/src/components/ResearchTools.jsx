@@ -5,6 +5,7 @@ import DataQualityNotice from './DataQualityNotice'
 import TradingChart from './TradingChart'
 import { getPortfolio, openPosition, closePosition, addFunds, calculatePortfolioStats, exportPortfolioHistoryToCSV, exportPaperPortfolioJSON, plannedDeadline } from '../utils/paperTradingStorage'
 import PaperDeadlineNotice from './PaperDeadlineNotice'
+import FixedHoldoutSummary from './FixedHoldoutSummary'
 import './ResearchTools.css'
 
 const number = value => value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
@@ -25,7 +26,7 @@ function useResult(path, options = null) {
     loading: state.key !== key, retry: () => setRevision(n => n + 1) }
 }
 
-export function ToolModal({ title, onClose, children }) {
+export function ToolModal({ title, onClose, children, headerContent }) {
   const ref = useRef(null)
   const id = useId()
   useEffect(() => {
@@ -36,8 +37,10 @@ export function ToolModal({ title, onClose, children }) {
   return <dialog ref={ref} className="research-dialog" aria-labelledby={id} onCancel={onClose}
     onClick={e => { if (e.target === ref.current) onClose() }}>
     <div className="research-shell">
-      <header><div><p>KAPPA · {language() === 'th' ? 'เครื่องมือวิจัย' : 'Research tools'}</p><h2 id={id}>{title}</h2></div>
-        <button onClick={onClose} aria-label="Close / ปิด" autoFocus>✕</button></header>
+      <header className={headerContent ? 'research-header-with-content' : undefined}><div><p>KAPPA · {language() === 'th' ? 'เครื่องมือวิจัย' : 'Research tools'}</p><h2 id={id}>{title}</h2></div>
+        <button onClick={onClose} aria-label="Close / ปิด" autoFocus>✕</button>
+        {headerContent && <div className="research-header-content">{headerContent}</div>}
+      </header>
       <div className="research-body">{children}</div>
     </div>
   </dialog>
@@ -74,7 +77,7 @@ export function BacktestTool({ onClose, initialSymbol = 'QQQ' }) {
   const [period, setPeriod] = useState('1y')
   const [strategy, setStrategy] = useState('MACD')
   const [capital, setCapital] = useState('10000')
-  const [validation, setValidation] = useState('holdout')
+  const [validation, setValidation] = useState('fixed_holdout')
   const [fee, setFee] = useState('10')
   const [slippage, setSlippage] = useState('5')
   const result = useResult(`/api/strategies/backtest/?${new URLSearchParams({symbol, period, strategy, capital, validation, fee_bps:fee, slippage_bps:slippage})}`)
@@ -82,9 +85,9 @@ export function BacktestTool({ onClose, initialSymbol = 'QQQ' }) {
   return <ToolModal title="Historical backtest / ทดสอบย้อนหลัง" onClose={onClose}>
     <p>Long-only historical research. Results include fees and slippage; they do not establish a future win probability.</p>
     <form className="research-controls" onSubmit={e => {e.preventDefault(); setSymbol(draft.trim().toUpperCase())}}>
-      <label>Evaluation<select aria-label="Evaluation" value={validation} onChange={e => {setValidation(e.target.value); if (e.target.value === 'holdout' && ['3mo','6mo'].includes(period)) setPeriod('1y')}}><option value="holdout">70/30 holdout check</option><option value="full">Full sample (exploratory)</option></select></label>
+      <label style={{flexBasis:240}}>Evaluation<select aria-label="Evaluation" value={validation} onChange={e => {setValidation(e.target.value); if (['holdout','fixed_holdout'].includes(e.target.value) && ['3mo','6mo'].includes(period)) setPeriod('1y')}}><option value="fixed_holdout">Fixed-rule 70/30 historical holdout</option><option value="fixed">Fixed stock protocol v1 (exploratory)</option><option value="holdout">70/30 rule-selection holdout (legacy)</option><option value="full">Full sample (exploratory)</option></select></label>
       <label>Ticker<input value={draft} onChange={e => setDraft(e.target.value)} maxLength={20}/></label>
-      <label>Period<select value={period} onChange={e => setPeriod(e.target.value)}>{(validation === 'holdout' ? ['1y','5y','10y'] : ['3mo','6mo','1y','5y','10y']).map(x => <option key={x}>{x}</option>)}</select></label>
+      <label>Period<select aria-label="Period" value={period} onChange={e => setPeriod(e.target.value)}>{(['holdout','fixed_holdout'].includes(validation) ? ['1y','5y','10y'] : ['3mo','6mo','1y','5y','10y']).map(x => <option key={x}>{x}</option>)}</select></label>
       {validation === 'full' && <label>Strategy<select aria-label="Strategy" value={strategy} onChange={e => setStrategy(e.target.value)}>{['MACD','EMA','CONFLUENCE'].map(x => <option key={x}>{x}</option>)}</select></label>}
       <label>Starting cash ($)<input type="number" min="1" max="1000000000" value={capital} onChange={e => setCapital(e.target.value)}/></label>
       <label>Fees per side (bps)<input type="number" min="0" max="100" value={fee} onChange={e => setFee(e.target.value)}/></label>
@@ -92,9 +95,17 @@ export function BacktestTool({ onClose, initialSymbol = 'QQQ' }) {
       <button type="submit">Load ticker</button>
     </form>
     <ResultState result={result}/>
+    {validation === 'fixed' && <p>Full-sample exploration of the fixed paper protocol. Choose Fixed-rule 70/30 historical holdout to evaluate only later dates. The legacy rule-selection mode uses different sizing and does not validate this protocol.</p>}
+    {validation === 'fixed_holdout' && <p>The frozen confluence-risk-v1 rules use earlier observations for indicator context and evaluate only the later 30%. No strategy is chosen by past return. This is historical research; forward validation is still required.</p>}
     {validation === 'holdout' && <p>Earlier 70% selects MACD, EMA, confluence, or cash by net return. Later 30% tests that selection with no refit. Strategy trades have a 14-calendar-day cap; buy-and-hold is an unrestricted reference. No brokerage orders are placed.</p>}
-    {data && <>{!data.validation && <Metrics items={[[symbol, `${data.start_date} → ${data.end_date}`],['Net return', `${number(data.return_pct)}%`],['Final equity', `$${number(data.final_equity)}`],['Max drawdown', `${number(data.max_drawdown_pct)}%`],['Closed trades', data.total_trades],['Sample win rate', `${number(data.win_rate_pct)}%`]]}/>}
-      {data.validation && <section aria-label="Holdout validation">
+    {data && <>{data.protocol && <section aria-label="Fixed stock strategy rules" className="data-quality-notice">
+        <strong>{data.protocol.name} · {data.protocol.version}</strong><p>{data.protocol.status}</p>
+        {validation==='fixed_holdout'?<details><summary>Inspect frozen entry, exit and sizing rules</summary><ul>{data.protocol.rules.map(rule => <li key={rule}>{rule}</li>)}</ul></details>:<ul>{data.protocol.rules.map(rule => <li key={rule}>{rule}</li>)}</ul>}
+        <p>Skipped entry sessions because one share did not fit the limits: {data.skipped_entry_sessions}. Each qualifying flat session is counted, including repeated sessions in the same signal.</p>
+      </section>}
+      {!data.validation && <Metrics items={[[symbol, `${data.start_date} → ${data.end_date}`],['Net return', `${number(data.return_pct)}%`],['Final equity', `$${number(data.final_equity)}`],['Max drawdown', `${number(data.max_drawdown_pct)}%`],['Closed trades', data.total_trades],['Sample win rate', `${number(data.win_rate_pct)}%`]]}/>}
+      {data.validation?.mode==='fixed_rule_holdout'&&<FixedHoldoutSummary data={data}/>}
+      {data.validation && data.validation.mode!=='fixed_rule_holdout' && <section aria-label="Holdout validation">
         <div className="data-quality-notice"><strong>{data.validation.verdict}</strong><span>Training: {data.validation.training_start} → {data.validation.training_end}. Holdout: {data.start_date} → {data.end_date}. Selected: {data.strategy}.</span></div>
         <Metrics items={[
           ['Holdout strategy return', `${number(data.return_pct)}%`],
@@ -108,8 +119,8 @@ export function BacktestTool({ onClose, initialSymbol = 'QQQ' }) {
         <ul>{data.validation.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
         <p>Chart: blue = selected strategy; green = buy-and-hold. Both start with ${number(data.initial_capital)} over the same holdout dates. Selected strategy ends with ${number(data.final_equity)}.</p>
       </section>}
-      <Chart data={data.equity_curve} series={data.validation ? ['equity','buy_and_hold'] : ['equity']}/><Assumptions data={data}/>
-      <div className="research-table-scroll"><table><thead><tr><th>Entry</th><th>Exit</th><th>Reason</th><th>Net P&amp;L</th></tr></thead><tbody>{data.trades.slice(-100).map((t,i) => <tr key={i}><td>{t.entry_date}</td><td>{t.exit_date}</td><td>{t.exit_reason}</td><td>${number(t.pnl)}</td></tr>)}</tbody></table></div>
+      <Chart data={data.equity_curve} series={data.validation?.mode==='fixed_rule_holdout'?['equity','buy_and_hold','cash']:data.validation ? ['equity','buy_and_hold'] : ['equity']}/><Assumptions data={data}/>
+      <div className="research-table-scroll"><table><thead><tr><th>Entry</th><th>Exit</th><th>Shares</th><th>Reason</th><th>Net P&amp;L</th></tr></thead><tbody>{data.trades.slice(-100).map((t,i) => <tr key={i}><td>{t.entry_date}</td><td>{t.exit_date}</td><td>{number(t.quantity)}</td><td>{t.exit_reason}</td><td>${number(t.pnl)}</td></tr>)}</tbody></table></div>
       {!data.total_trades && <p>No closed trades for this sample and strategy.</p>}</>}
   </ToolModal>
 }

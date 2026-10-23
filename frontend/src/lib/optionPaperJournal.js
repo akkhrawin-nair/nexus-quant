@@ -65,7 +65,7 @@ function outcomeFor(position,input,now) {
   }else throw new Error('Choose an exit bid reference or a zero-recovery assumption.')
   const assumedExitAt=quoteTime || recordedAt, date=marketDate(Date.parse(assumedExitAt)), pnlDollar=cents(proceeds-position.entryCost)
   return {kind,bid,fee,quoteTime,sourceName,termsConfirmed,zeroRecoveryConfirmed,note,recordedAt,assumedExitAt,
-    proceeds,pnlDollar,returnPct:pnlDollar/position.entryCost*100,
+    proceeds,pnlDollar,returnPct:position.entryCost ? pnlDollar/position.entryCost*100 : null,
     exitDateMissed:date>position.ticket.plannedExit,deadlineMissed:date>position.deadline,afterExpiration:date>position.ticket.expiration}
 }
 
@@ -82,10 +82,28 @@ function validPosition(position) {
       Object.keys(original.ticket).length!==Object.keys(position.ticket).length ||
       !Object.entries(original.ticket).every(([key,value])=>position.ticket[key]===value) ||
       JSON.stringify(position.reviewFlags)!==JSON.stringify(original.reviewFlags))return false
-    if(position.outcome!==null){
+    if(position.exits!==undefined){
+      if(!Array.isArray(position.exits)||!position.exits.length||position.exits.length>position.ticket.contracts||new Set(position.exits.map(e=>e.id)).size!==position.exits.length)return false
+      const prior=[]
+      for(const exit of position.exits){
+        if(!safeText(exit.id,100))return false
+        const rebuilt=buildPartialExit({...position,exits:prior,outcome:null},{...exit.outcome,contracts:exit.contracts},Date.parse(exit.outcome.recordedAt),exit.id)
+        if(canonical(rebuilt)!==canonical(exit))return false
+        prior.push(exit)
+      }
+      if(canonical(position.outcome)!==canonical(seriesOutcome(position)))return false
+    }else if(position.outcome!==null){
       if(!validTime(position.outcome?.recordedAt))return false
       const rebuilt=outcomeFor(position,position.outcome,Date.parse(position.outcome.recordedAt))
       if(Object.keys(rebuilt).length!==Object.keys(position.outcome).length || !Object.entries(rebuilt).every(([key,value])=>position.outcome[key]===value))return false
+    }
+    if(position.marks!==undefined){
+      if(!Array.isArray(position.marks)||position.marks.length>100)return false
+      for(const mark of position.marks){
+        if(!Number.isInteger(mark.exitCount)||mark.exitCount<0||mark.exitCount>(position.exits||[]).length)return false
+        const past={...position,outcome:null,exits:(position.exits||[]).slice(0,mark.exitCount)}
+        if(canonical(buildMark(past,mark,Date.parse(mark.recordedAt)))!==canonical(mark))return false
+      }
     }
     return true
   }catch{return false}
@@ -109,11 +127,11 @@ function writeJournal(storage,journal) {
 }
 
 const canonical=value=>value && typeof value==='object' ? (Array.isArray(value) ? `[${value.map(canonical).join(',')}]` : `{${Object.keys(value).sort().map(key=>`${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`) : JSON.stringify(value)
-const entryIdentity=position=>canonical(Object.fromEntries(Object.entries(position).filter(([key])=>!['id','outcome'].includes(key))))
+const entryIdentity=position=>canonical(Object.fromEntries(Object.entries(position).filter(([key])=>!['id','outcome','exits','marks'].includes(key))))
 const recordIdentity=position=>canonical(Object.fromEntries(Object.entries(position).filter(([key])=>key!=='id')))
 
-export function previewOptionPaperRestore(storage,raw) {
-  if(typeof raw!=='string' || new TextEncoder().encode(raw).length>2*1024*1024)throw new Error('Choose a journal JSON backup no larger than 2 MB.')
+export function previewOptionPaperRestore(storage,raw,maxBytes=2*1024*1024) {
+  if(typeof raw!=='string' || new TextEncoder().encode(raw).length>maxBytes)throw new Error(`Choose a journal JSON backup no larger than ${maxBytes/1024/1024} MB.`)
   const incoming=loadOptionPaperJournal({getItem:()=>raw}), baseRaw=storage.getItem(OPTION_PAPER_KEY)
   const current=loadOptionPaperJournal({getItem:()=>baseRaw}), merged=[...current.positions], added=[]
   let duplicates=0
@@ -174,8 +192,16 @@ export function recordOptionPaperExit(storage,id,input,now=Date.now()) {
   const journal=loadOptionPaperJournal(storage), position=journal.positions.find(p=>p.id===id)
   if(!position)throw new Error('Options paper position not found.')
   if(position.outcome)throw new Error('This position already has a recorded outcome; the original record was kept.')
-  const outcome=outcomeFor(position,input,now)
-  const next={...journal,positions:journal.positions.map(p=>p.id===id ? {...p,outcome} : p)}
+  let updated
+  if(position.exits || input.contracts!==undefined){
+    const exit=buildPartialExit(position,input,now,crypto.randomUUID())
+    const sameInputs=old=>old.contracts===exit.contracts&&['kind','bid','fee','quoteTime','sourceName','note','termsConfirmed','zeroRecoveryConfirmed'].every(key=>old.outcome[key]===exit.outcome[key])
+    if((position.exits||[]).some(sameInputs))throw new Error('This identical partial exit is already recorded. The original was kept; a new exit needs a distinct source timestamp or explanation.')
+    const exits=[...(position.exits||[]),exit]
+    updated={...position,exits}
+    updated.outcome=seriesOutcome(updated)
+  }else updated={...position,outcome:outcomeFor(position,input,now)}
+  const next={...journal,positions:journal.positions.map(p=>p.id===id ? updated : p)}
   writeJournal(storage,next)
   return next
 }
@@ -188,8 +214,8 @@ export function optionPaperStatus(position,now=Date.now()) {
 export function optionPaperSummary(positions) {
   const closed=positions.filter(p=>p.outcome)
   return {open:positions.length-closed.length,closed:closed.length,
-    openEntryCost:cents(positions.filter(p=>!p.outcome).reduce((sum,p)=>sum+p.entryCost,0)),
-    realizedPnl:cents(closed.reduce((sum,p)=>sum+p.outcome.pnlDollar,0))}
+    openEntryCost:cents(positions.filter(p=>!p.outcome).reduce((sum,p)=>sum+remainingEntryCost(p),0)),
+    realizedPnl:cents(positions.reduce((sum,p)=>sum+(p.exits ? p.exits.reduce((total,e)=>total+e.outcome.pnlDollar,0) : p.outcome?.pnlDollar||0),0))}
 }
 
 // Descriptive statistics of recorded assumptions, never unrealized marks or fills.
@@ -204,11 +230,65 @@ export function optionPaperReview(positions,now=Date.now()) {
     winRatePct:closed.length ? wins/closed.length*100 : null,netPnl,closedEntryCost,
     averagePnl:closed.length ? netPnl/closed.length : null,
     returnOnClosedEntryPct:closedEntryCost ? netPnl/closedEntryCost*100 : null,
-    closedFees:sum(p=>p.entryFees+(p.outcome.kind==='bid_reference' ? p.outcome.fee*p.ticket.contracts : 0)),
-    bidReferences:closed.filter(p=>p.outcome.kind==='bid_reference').length,
-    zeroRecovery:closed.filter(p=>p.outcome.kind==='zero_recovery').length,
+    closedFees:sum(p=>p.entryFees+(p.outcome.kind==='exit_series' ? p.outcome.exitFees : p.outcome.kind==='bid_reference' ? p.outcome.fee*p.ticket.contracts : 0)),
+    bidReferences:closed.filter(p=>p.outcome.kind==='bid_reference'||p.outcome.bidReferenceContracts>0).length,
+    zeroRecovery:closed.filter(p=>p.outcome.kind==='zero_recovery'||p.outcome.zeroRecoveryContracts>0).length,
     missedPlannedExit:closed.filter(p=>p.outcome.exitDateMissed).length,
     missedDeadline:closed.filter(p=>p.outcome.deadlineMissed).length,
     openPastPlannedExit:open.filter(p=>today>p.ticket.plannedExit).length,
     openExpired:open.filter(p=>today>p.ticket.expiration).length}
+}
+
+export function optionRemainingContracts(position) {
+  return position.outcome ? 0 : position.ticket.contracts-(position.exits||[]).reduce((sum,e)=>sum+e.contracts,0)
+}
+const allocatedEntryCost=(p,quantity)=>cents(p.entryCost*quantity/p.ticket.contracts)
+export const remainingEntryCost=p=>cents(p.entryCost-allocatedEntryCost(p,p.ticket.contracts-optionRemainingContracts(p)))
+function buildPartialExit(position,input,now,id) {
+  const quantity=number(input.contracts,1,optionRemainingContracts(position),'exit contracts')
+  if(!Number.isInteger(quantity))throw new Error('Exit contracts must be a whole number.')
+  const past=position.exits||[],prior=past.at(-1)?.outcome
+  if(prior&&(now<Date.parse(prior.recordedAt)||(input.kind==='bid_reference'&&Date.parse(input.quoteTime)<Date.parse(prior.assumedExitAt))))throw new Error('Partial exits must follow the prior recorded exit and source time.')
+  const before=past.reduce((sum,e)=>sum+e.contracts,0)
+  const entryCost=cents(allocatedEntryCost(position,before+quantity)-allocatedEntryCost(position,before))
+  const outcome=outcomeFor({...position,entryCost,ticket:{...position.ticket,contracts:quantity}},input,now)
+  return {id,contracts:quantity,entryCost,outcome}
+}
+function seriesOutcome(position) {
+  const exits=position.exits||[]
+  if(exits.reduce((sum,e)=>sum+e.contracts,0)!==position.ticket.contracts)return null
+  const last=exits.at(-1).outcome,proceeds=cents(exits.reduce((sum,e)=>sum+e.outcome.proceeds,0)),pnlDollar=cents(proceeds-position.entryCost)
+  return {kind:'exit_series',proceeds,pnlDollar,returnPct:pnlDollar/position.entryCost*100,recordedAt:last.recordedAt,assumedExitAt:last.assumedExitAt,
+    exitFees:cents(exits.reduce((sum,e)=>sum+(e.outcome.kind==='bid_reference'?e.contracts*e.outcome.fee:0),0)),
+    bidReferenceContracts:exits.filter(e=>e.outcome.kind==='bid_reference').reduce((sum,e)=>sum+e.contracts,0),
+    zeroRecoveryContracts:exits.filter(e=>e.outcome.kind==='zero_recovery').reduce((sum,e)=>sum+e.contracts,0),
+    exitDateMissed:exits.some(e=>e.outcome.exitDateMissed),deadlineMissed:exits.some(e=>e.outcome.deadlineMissed),afterExpiration:exits.some(e=>e.outcome.afterExpiration)}
+}
+function buildMark(position,input,now) {
+  const bid=number(input.bid,0,1e6,'monitoring bid'),fee=number(input.fee,0,10000,'monitoring exit fee')
+  const stamp=Date.parse(input.quoteTime),contracts=optionRemainingContracts(position)
+  if(!contracts||!Number.isFinite(now)||!Number.isFinite(stamp)||stamp<Date.parse(position.openedAt)||stamp>now+5000||now-stamp>60000||marketDate(stamp)>position.ticket.expiration)throw new Error('A monitoring quote must be after entry, within 60 seconds and no later than expiration.')
+  if(input.termsConfirmed!==true||!safeText(input.sourceName))throw new Error('Confirm the exact contract and enter the monitoring quote source.')
+  const last=position.exits?.at(-1)?.outcome
+  if(last&&(now<Date.parse(last.recordedAt)||stamp<Date.parse(last.assumedExitAt)))throw new Error('Monitoring quote must follow the last partial exit.')
+  const proceeds=cents(bid*contracts*position.ticket.multiplier-fee*contracts)
+  if(!Number.isFinite(proceeds)||Math.abs(proceeds)>1e12)throw new Error('Monitoring proceeds exceed the supported finite range.')
+  return {bid,fee,quoteTime:new Date(stamp).toISOString(),recordedAt:new Date(now).toISOString(),sourceName:input.sourceName.trim(),termsConfirmed:true,
+    contracts,exitCount:(position.exits||[]).length,proceeds,pnlDollar:cents(proceeds-remainingEntryCost(position))}
+}
+export function recordOptionPaperMark(storage,id,input,now=Date.now()) {
+  const journal=loadOptionPaperJournal(storage),position=journal.positions.find(p=>p.id===id)
+  if(!position||position.outcome)throw new Error('Choose an open paper position to monitor.')
+  const marks=position.marks||[]
+  if(marks.length>=100)throw new Error('This position has 100 saved monitoring snapshots. Export a backup.')
+  const mark=buildMark(position,input,now)
+  if(marks.some(m=>m.quoteTime===mark.quoteTime&&m.contracts===mark.contracts&&m.bid===mark.bid&&m.fee===mark.fee&&m.sourceName===mark.sourceName))return journal
+  const next={...journal,positions:journal.positions.map(p=>p.id===id?{...p,marks:[...marks,mark]}:p)}
+  writeJournal(storage,next);return next
+}
+export function optionPaperMarkStatus(position,now=Date.now()) {
+  const mark=position.marks?.at(-1)
+  if(!mark)return {kind:'missing',mark:null}
+  const kind=mark.contracts!==optionRemainingContracts(position)?'quantity_changed':now-Date.parse(mark.quoteTime)>60000||now<Date.parse(mark.quoteTime)-5000?'stale':'fresh_reference'
+  return {kind,mark}
 }

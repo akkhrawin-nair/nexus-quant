@@ -25,6 +25,19 @@ def reviewed_context(symbol, today=None):
     return context
 
 
+def catalyst_calendar(today=None):
+    today = today or datetime.now(ZoneInfo('America/New_York')).date()
+    issuers, events = [], []
+    for symbol in ('EOSE', 'ONDS'):
+        context = reviewed_context(symbol, today)
+        issuers.append({'symbol':symbol, 'reviewed_at':context['reviewed_at'],
+                        'needs_review':context['needs_review'], 'known_events':len(context['events'])})
+        events.extend({'symbol':symbol, **event, 'reviewed_at':context['reviewed_at'],
+                       'needs_review':context['needs_review']} for event in context['events'])
+    return {'as_of':today.isoformat(), 'issuers':issuers, 'events':events,
+            'coverage':'Selected maintained issuer sources; not exhaustive or continuously updated. No listed event does not mean no event risk.'}
+
+
 def technical_brief(symbol, frame, today=None):
     symbol = validate_symbol(symbol)
     if len(frame) < 60 or frame.index.has_duplicates:

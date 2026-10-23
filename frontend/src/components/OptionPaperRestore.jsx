@@ -31,7 +31,7 @@ export default function OptionPaperRestore({onRestored}) {
   return <details className="option-paper-limits">
     <summary>Restore options journal backup</summary>
     <section className="option-paper-entry" aria-label="Restore options journal backup">
-      <p>Choose a KAPPA options journal JSON export (up to 2 MB). The file is read locally. Previewing does not change your records.</p>
+      <p>Choose a KAPPA options journal JSON export (up to 2 MB). For larger monitoring histories, use Backups on the dashboard (up to 32 MB). The file is read locally. Previewing does not change your records.</p>
       <label>Options journal backup file<input type="file" accept=".json,application/json" onChange={select}/></label>
       {busy && <p role="status">Validating backup…</p>}
       {error && <p role="alert" className="research-error">{error}</p>}

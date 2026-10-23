@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { marketDate } from '../lib/options'
-import { OPTION_PAPER_KEY, OPTION_PAPER_EVENT, loadOptionPaperJournal, openOptionPaperPosition, recordOptionPaperExit, optionPaperStatus, optionPaperSummary, setOptionPaperRiskLimit } from '../lib/optionPaperJournal'
+import { OPTION_PAPER_KEY, OPTION_PAPER_EVENT, loadOptionPaperJournal, openOptionPaperPosition, recordOptionPaperExit, recordOptionPaperMark, optionRemainingContracts, optionPaperStatus, optionPaperSummary, setOptionPaperRiskLimit } from '../lib/optionPaperJournal'
+import OptionPositionMonitoring from './OptionPositionMonitoring'
 import './OptionPaperJournal.css'
 import OptionPaperReview from './OptionPaperReview'
 import OptionPaperRestore from './OptionPaperRestore'
@@ -13,12 +14,12 @@ function RiskLimitForm({limit,committed,disabled,onSave}) {
   const remaining=limit===undefined ? null : Math.round((limit-committed)*100)/100
   return <form className="option-paper-entry" aria-label="Combined options paper risk limit" onSubmit={event=>{event.preventDefault();onSave(value)}}>
     <h4>Combined paper premium limit</h4>
-    <p>Counts the original entry cost plus buy fees of every open options record, including expired records without an outcome.</p>
+    <p>Counts allocated entry cost plus buy fees for the remaining contracts in every open options record, including expired records without an outcome.</p>
     <dl className="research-metrics">{[['Saved limit',limit===undefined ? 'Not set' : usd(limit)],['Open commitment',usd(committed)],['Remaining capacity',remaining===null ? 'Set your limit first' : usd(Math.max(0,remaining))]].map(([label,amount])=><div key={label}><dt>{label}</dt><dd>{amount}</dd></div>)}</dl>
     {remaining!==null && remaining<0 && <p role="alert" className="research-error">Open commitment exceeds your saved limit by {usd(-remaining)}. Existing records are preserved; new entries are blocked.</p>}
     <label>Total open paper premium cap ($)<input required type="number" min="0" max="1000000000" step=".01" value={value} onChange={event=>setValue(event.target.value)}/></label>
     <button type="submit" disabled={disabled}>Save combined paper limit</button>
-    <p className="option-paper-note">You choose this cap; it is not a suggested allocation. Zero blocks new entries. Recording an outcome releases that record’s original commitment. Losses do not reduce this cap automatically. This is a browser-local exposure guard, not an account balance, cash reservation or limit on actual losses and costs.</p>
+    <p className="option-paper-note">You choose this cap; it is not a suggested allocation. Zero blocks new entries. Paper exits release only the allocated entry commitment of the exited quantity. Losses do not reduce this cap automatically. This is a browser-local exposure guard, not an account balance, cash reservation or limit on actual losses and costs.</p>
   </form>
 }
 
@@ -39,8 +40,8 @@ function OpenTicketForm({ticket,now,disabled,riskLimit,committed,onOpen}) {
   </form>
 }
 
-function PositionCard({position,now,disabled,onExit}) {
-  const [form,setForm]=useState({kind:'bid_reference',bid:'',fee:String(position.ticket.fee),quoteTime:'',sourceName:'',termsConfirmed:false,zeroRecoveryConfirmed:false,note:''})
+function PositionCard({position,now,disabled,onExit,onMark}) {
+  const [form,setForm]=useState({kind:'bid_reference',contracts:String(optionRemainingContracts(position)),bid:'',fee:String(position.ticket.fee),quoteTime:'',sourceName:'',termsConfirmed:false,zeroRecoveryConfirmed:false,note:''})
   const change=(key,value)=>setForm(previous=>({...previous,[key]:value,...(key==='kind' ? {termsConfirmed:false,zeroRecoveryConfirmed:false} : {})}))
   const field=(key,label,props={})=><label>{label}<input required {...props} value={form[key]} onChange={event=>change(key,event.target.value)}/></label>
   const state=optionPaperStatus(position,now), ticket=position.ticket, outcome=position.outcome
@@ -52,22 +53,25 @@ function PositionCard({position,now,disabled,onExit}) {
       ['Buy fees paid in simulation',usd(position.entryFees)],['Planned exit (New York)',ticket.plannedExit],['Latest allowed date',position.deadline]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     <p className="option-paper-note">Opened {new Date(position.openedAt).toLocaleString()} · source: {position.source.name} · source quote <time dateTime={ticket.quoteTime}>{new Date(ticket.quoteTime).toLocaleString()}</time>. Times display in your browser timezone. Original contract and entry assumptions are preserved.</p>
     {outcome ? <div className="option-paper-outcome" role="status"><strong>Net paper P&amp;L: {usd(outcome.pnlDollar)} · {outcome.returnPct.toFixed(2)}%</strong>
-      <p>{outcome.kind==='zero_recovery' ? 'Zero-recovery assumption — no sale or settlement was verified.' : `Assumed exit option bid ${usd(outcome.bid,4)} · ${usd(outcome.fee)} fee per contract · net proceeds ${usd(outcome.proceeds)}.`}</p>
+      <p>{outcome.kind==='exit_series' ? `All contracts covered by recorded paper exits; ${outcome.zeroRecoveryContracts} under zero-recovery assumptions. Net proceeds ${usd(outcome.proceeds)}. No sale or settlement is verified.` : outcome.kind==='zero_recovery' ? 'Zero-recovery assumption — no sale or settlement was verified.' : `Assumed exit option bid ${usd(outcome.bid,4)} · ${usd(outcome.fee)} fee per contract · net proceeds ${usd(outcome.proceeds)}.`}</p>
       <p>Recorded {new Date(outcome.recordedAt).toLocaleString()}. {outcome.quoteTime && <>Source quote / simulated exit time: {new Date(outcome.quoteTime).toLocaleString()} · {outcome.sourceName}.</>}</p>
       <p>{outcome.exitDateMissed ? 'The entered outcome date missed the planned exit date.' : 'The entered outcome date was within the planned date.'} {outcome.afterExpiration && 'This outcome assumption was recorded after expiration.'} Market hours and broker cutoffs remain unverified.</p>
       {outcome.note && <p>Note: {outcome.note}</p>}
-    </div> : <details className="option-paper-exit"><summary>Record full-position outcome</summary>
+    </div> : <details className="option-paper-exit"><summary>Record full or partial paper outcome</summary>
       <form onSubmit={event=>{event.preventDefault();onExit(position.id,form)}}>
+        {field('contracts','Contracts to exit',{type:'number',min:'1',max:optionRemainingContracts(position),step:'1'})}
         <label>Outcome method<select aria-label="Outcome method" value={form.kind} onChange={event=>change('kind',event.target.value)}><option value="bid_reference">Assumed sale at an entered option bid</option><option value="zero_recovery">Zero-recovery assumption — no sale recorded</option></select></label>
         {form.kind==='bid_reference' ? <><div className="research-controls">{field('bid','Exit option bid per unit ($)',{type:'number',min:'.0001',max:'1000000',step:'any'})}{field('fee','Exit fee per contract ($)',{type:'number',min:'0',max:'10000',step:'any'})}</div>
           <div className="research-controls">{field('quoteTime','Exit source quote time',{type:'datetime-local',step:'1'})}{field('sourceName','Exit quote source',{maxLength:60,placeholder:'e.g. Webull, manually copied'})}</div>
           <label className="option-paper-check"><input required type="checkbox" checked={form.termsConfirmed} onChange={event=>change('termsConfirmed',event.target.checked)}/>I checked this bid belongs to the original exact contract and deliverable.</label>
-          <p className="option-paper-note">The entered source timestamp is the simulated exit time. It must be after entry and on/before expiration; an older historical quote can be recorded later, with both times preserved. Quote freshness and execution are unverified. This closes the full paper quantity.</p>
+          <p className="option-paper-note">The entered source timestamp is the simulated exit time. It must be after entry and on/before expiration; an older historical quote can be recorded later, with both times preserved. Quote freshness and execution are unverified. Only the entered whole-contract quantity is closed; the remaining quantity keeps its deadline.</p>
         </> : <><label className="option-paper-check"><input required type="checkbox" checked={form.zeroRecoveryConfirmed} onChange={event=>change('zeroRecoveryConfirmed',event.target.checked)}/>I explicitly assume zero recovery for this paper outcome; this is not a verified sale, exercise or settlement.</label><p className="option-paper-note">No sale proceeds or exit trading fee are assumed. Check actual broker treatment separately.</p></>}
         <label>Outcome note<input required={form.kind==='zero_recovery'} maxLength={300} value={form.note} onChange={event=>change('note',event.target.value)}/></label>
         <button type="submit" disabled={disabled}>Record options paper outcome</button>
       </form>
     </details>}
+    {!!position.exits?.length&&<div className="research-table-scroll"><table><caption>Preserved partial paper exits</caption><thead><tr><th>Quantity</th><th>Method / source time</th><th>Allocated entry cost</th><th>Net paper P&amp;L</th></tr></thead><tbody>{position.exits.map(exit=><tr key={exit.id}><td>{exit.contracts}</td><td>{exit.outcome.kind} · {new Date(exit.outcome.assumedExitAt).toLocaleString()}</td><td>{usd(exit.entryCost)}</td><td>{usd(exit.outcome.pnlDollar)}</td></tr>)}</tbody></table></div>}
+    <OptionPositionMonitoring position={position} now={now} disabled={disabled} onMark={onMark}/>
   </article>
 }
 
@@ -101,13 +105,13 @@ export default function OptionPaperJournal({ticket}) {
     <OptionPaperRestore onRestored={()=>{setState(read());setNow(Date.now());setError('');setMessage('')}}/>
     {state.journal && <OptionPaperReview positions={positions} now={now}/>}
     <RiskLimitForm key={String(state.journal?.riskLimit)} limit={state.journal?.riskLimit} committed={summary.openEntryCost} disabled={!state.journal} onSave={value=>operate(()=>setOptionPaperRiskLimit(window.localStorage,value),'Combined paper premium limit saved.')}/>
-    {ticket ? <OpenTicketForm key={JSON.stringify(ticket.plan)+(ticket.quote?.contract||'manual')} ticket={ticket} now={now} disabled={!state.journal} riskLimit={state.journal?.riskLimit} committed={summary.openEntryCost} onOpen={confirmation=>operate(()=>openOptionPaperPosition(window.localStorage,ticket,confirmation))}/> : <p>Calculate an option ticket above to open a new paper position. Existing records remain below.</p>}
+    {ticket ? <OpenTicketForm key={JSON.stringify(ticket.plan)+(ticket.quote?.contract||'manual')} ticket={ticket} now={now} disabled={!state.journal} riskLimit={state.journal?.riskLimit} committed={summary.openEntryCost} onOpen={confirmation=>operate(()=>openOptionPaperPosition(window.localStorage,ticket,confirmation))}/> : <p>Calculate a ticket in Plan an option to open a new paper position. Existing records remain below.</p>}
     {!positions.length && state.journal && <p>No options paper positions recorded yet.</p>}
-    {shown.map(position=><PositionCard key={position.id} position={position} now={now} disabled={!state.journal} onExit={(id,input)=>operate(()=>recordOptionPaperExit(window.localStorage,id,input))}/>)}
+    {shown.map(position=><PositionCard key={`${position.id}:${optionRemainingContracts(position)}`} position={position} now={now} disabled={!state.journal} onExit={(id,input)=>operate(()=>recordOptionPaperExit(window.localStorage,id,input))} onMark={(id,input)=>operate(()=>recordOptionPaperMark(window.localStorage,id,input),'Monitoring snapshot saved; position quantity and realized P&L were not changed.')}/>)}
     <details className="option-paper-limits"><summary>Journal method and limits</summary><p>Buy cost = ask × contracts × multiplier + buy fees. Exit proceeds = entered bid × contracts × multiplier − exit fees. P&amp;L = net exit proceeds − original entry cost. Return is P&amp;L divided by entry cost. Fees default from the ticket but can be changed for exit. FX, taxes, exercise/assignment costs and extra slippage are not modeled.</p>
       <p>Expiration must be within 14 calendar days of entry. The planned exit must be no later than expiration or 14 days after entry, using New York dates. Notices refresh while the app is open. No automatic exit, background notification, contract settlement or expired-option pricing runs. Expired records stay open until an explicit outcome is recorded. Date checks do not verify market hours or broker cutoff times.</p>
       <p>Source names, deliverables and manually entered prices remain unverified. A positive entered bid is a reference, not a guaranteed fill. A zero-recovery assumption records no sale and cannot establish the actual economic outcome of an expired contract.</p>
-      <p>Browser-local storage: up to 200 total records, all open positions and the latest 20 outcomes shown. JSON export includes every record. Export before clearing storage; local JSON restoration is available, and there is no cloud backup. New entries must fit both the per-ticket budget and your combined paper premium limit. Open records, including expired ones, count their full original entry cost until an outcome is recorded. This does not reserve account cash. Records can be edited using browser tools and are not independently audited.</p>
+      <p>Browser-local storage: up to 200 total records, all open positions and the latest 20 outcomes shown. JSON export includes every record, partial exit and monitoring snapshot. Export before clearing storage; local JSON restoration is available, and there is no cloud backup. New entries must fit both the per-ticket budget and your combined paper premium limit. Remaining contracts count their allocated original entry cost until explicitly exited, including expired contracts. Original costs are allocated cumulatively to cents, so entry fees are never counted twice. This does not reserve account cash. Monitoring marks do not change realized P&amp;L. Records can be edited using browser tools and are not independently audited.</p>
     </details>
   </section>
 }

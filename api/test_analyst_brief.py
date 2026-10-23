@@ -12,6 +12,25 @@ def sample():
 
 
 class AnalystBriefTests(SimpleTestCase):
+    def test_selected_issuer_calendar_keeps_sources_review_dates_and_no_event_uncertainty(self):
+        from api.services import analyst_brief
+        self.assertTrue(hasattr(analyst_brief, 'catalyst_calendar'))
+        calendar=analyst_brief.catalyst_calendar(date(2026,10,23))
+        event=next(row for row in calendar['events'] if row['symbol']=='EOSE')
+        self.assertEqual(event['date'],'2026-11-05')
+        self.assertEqual(event['window'],'within_14_days')
+        self.assertTrue(event['url'].startswith('https://investors.eose.com/'))
+        self.assertEqual(event['reviewed_at'],'2026-10-21')
+        self.assertIn('not exhaustive',calendar['coverage'])
+        self.assertIn('ONDS',[row['symbol'] for row in calendar['issuers']])
+
+    def test_issuer_calendar_endpoint_requires_no_market_data(self):
+        with patch('api.http_views.stored_history') as history:
+            response=APIClient().get('/api/research/catalysts/')
+        self.assertEqual(response.status_code,200)
+        self.assertIn('events',response.json())
+        history.assert_not_called()
+
     def test_chart_levels_exclude_last_bar_and_lines_align_with_candles(self):
         from api.services.analyst_brief import technical_brief
         frame = sample()

@@ -57,7 +57,7 @@ export default function ForecastJournal({brief}) {
     </div>
     {(state.error || operationError) && <p role="alert" className="research-error">{state.error || operationError}</p>}
     {message && <p role="status">{message}</p>}
-    <p className="analyst-legend">Stored only in this browser, with up to 200 records across all tickers. Export before clearing browser storage. No cloud backup or import is included. {state.journal ? `${state.journal.records.length} saved across all tickers.` : ''}</p>
+    <p className="analyst-legend">Stored only in this browser, with up to 200 records across all tickers. Export before clearing browser storage. Restore JSON exports through Backups on the dashboard; no cloud backup is included. {state.journal ? `${state.journal.records.length} saved across all tickers.` : ''}</p>
     {!records.length && state.journal && <p>No forecasts saved for {brief.symbol} yet. Save one to begin tracking.</p>}
     {!!records.length && <>
       <p className="analyst-legend">On a narrow screen, scroll the table sideways to see the actual close, errors and status.</p>

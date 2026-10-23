@@ -117,6 +117,7 @@ export default function Dashboard() {
     const a = document.createElement('a'); a.href=url; a.download='kappa-observed-signals.csv'; a.click(); URL.revokeObjectURL(url)
   }
   const buttons = [['analyst','Analyst desk','วิเคราะห์หุ้นและข่าว'],['options','Options bid / ask','คำนวณ Bid / Ask ออปชัน'],['backtest','Backtest','ทดสอบย้อนหลัง'],['optimizer','Allocation','สัดส่วนพอร์ต'],['correlation','Correlation','สหสัมพันธ์'],['risk','Risk scenarios','แบบจำลองความเสี่ยง'],['news','News','ข่าว'],['indicator','Indicators','ตัวชี้วัด'],['paper','Paper portfolio','พอร์ตจำลอง'],['education','Research guide','แนวทางวิจัย'],['alerts','Alerts','การแจ้งเตือน']]
+  buttons.unshift(['brief','Daily brief','Daily brief'],['backups','Backups','Backups'])
   const latestDate = feed.signals.map(s => s.signal_date).sort().at(-1)
   const bullishCount = feed.signals.filter(s => s.macd > s.macd_signal).length
   return <div className="minimal-app-root reliability-app">

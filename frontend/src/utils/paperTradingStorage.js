@@ -21,9 +21,9 @@ export const DEFAULT_PORTFOLIO = {
 /**
  * Retrieves portfolio from localStorage or initializes default.
  */
-export function getPortfolio() {
+export function getPortfolio(storage = localStorage) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(STORAGE_KEY);
     if (!raw) {
       return structuredClone(DEFAULT_PORTFOLIO);
     }

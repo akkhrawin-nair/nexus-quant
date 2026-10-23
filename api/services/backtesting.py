@@ -39,7 +39,8 @@ def strategy_signals(frame, strategy):
 
 
 def backtest_ohlcv(frame, strategy='MACD', capital=10000, fee_bps=10, slippage_bps=5,
-                   stop_pct=0.075, target_pct=0.15, evaluation_start=0, max_holding_days=None):
+                   stop_pct=0.075, target_pct=0.15, evaluation_start=0, max_holding_days=None,
+                   risk_sized=False):
     strategy = strategy.upper()
     if strategy not in {'MACD', 'EMA', 'CONFLUENCE'}:
         raise ValueError('Supported strategies: MACD, EMA, CONFLUENCE.')
@@ -67,6 +68,7 @@ def backtest_ohlcv(frame, strategy='MACD', capital=10000, fee_bps=10, slippage_b
     signals = strategy_signals(frame, strategy)
     cash, qty, entry, entry_date, cost = capital, 0., 0., None, 0.
     trades, curve = [], []
+    skipped_entry_sessions = 0
 
     def exit_position(price, stamp, reason):
         nonlocal cash, qty
@@ -90,8 +92,18 @@ def backtest_ohlcv(frame, strategy='MACD', capital=10000, fee_bps=10, slippage_b
             exit_position(row.Open, stamp, 'signal')
         if i and not qty and not deadline_exit and bool(signals.iloc[i - 1]):
             entry = float(row.Open) * (1 + slip)
-            qty = cash / (entry * (1 + fee))
-            cost, cash, entry_date = cash, 0., str(stamp.date())
+            unit_cost = entry * (1 + fee)
+            if risk_sized:
+                # Cash is equity while flat; reserve both entry and stop-exit costs.
+                unit_risk = unit_cost - entry * (1 - stop_pct) * (1 - slip) * (1 - fee)
+                qty = float(np.floor(min(cash * .01 / unit_risk, cash * .20 / unit_cost)))
+                if not qty:
+                    skipped_entry_sessions += 1
+            else:
+                qty = cash / unit_cost
+            cost = qty * unit_cost
+            cash -= cost
+            entry_date = str(stamp.date())
         if qty:
             stop, target = entry * (1 - stop_pct), entry * (1 + target_pct)
             if row.Open <= stop:
@@ -119,6 +131,7 @@ def backtest_ohlcv(frame, strategy='MACD', capital=10000, fee_bps=10, slippage_b
             'profit_factor': profit / loss if loss else None,
             'start_date': str(frame.index[evaluation_start].date()), 'end_date': str(frame.index[-1].date()),
             'observations': len(frame) - evaluation_start, 'trades': trades, 'equity_curve': curve,
+            'skipped_entry_sessions': skipped_entry_sessions,
             'assumptions': ['Long-only adjusted daily OHLCV; 50-bar warmup.',
                             'Signals use prior close; fills occur at next open.',
                             'Stop checked before target when daily bar touches both; gaps may exceed stops.',
@@ -129,3 +142,32 @@ def backtest_ohlcv(frame, strategy='MACD', capital=10000, fee_bps=10, slippage_b
                            ([f'Maximum {max_holding_days} calendar days per strategy position; no same-open reentry after a deadline exit.',
                              'Deadline scheduling uses observed session dates; exit at prior session close if the next observed session exceeds the deadline. Missing bars can bias this retrospective schedule.'] if max_holding_days else []),
             'data_quality': frame.attrs.get('data_quality') or data_quality('Adjusted historical market bars', 'available')}
+
+
+def fixed_strategy_backtest(frame, capital=10000, fee_bps=10, slippage_bps=5, evaluation_start=0):
+    """Frozen research rules; no training selection or profitability claim."""
+    frame = frame.copy()
+    # Legacy exploratory modes retain their semantics; fixed mode never treats
+    # missing/negative volume or a nonpositive baseline as a qualifying signal.
+    frame['Volume'] = pd.to_numeric(frame.Volume, errors='coerce').where(
+        lambda volume: np.isfinite(volume) & (volume > 0))
+    result = backtest_ohlcv(frame, strategy='CONFLUENCE', capital=capital,
+                           fee_bps=fee_bps, slippage_bps=slippage_bps,
+                           stop_pct=.075, target_pct=.15, max_holding_days=14,
+                           risk_sized=True, evaluation_start=evaluation_start)
+    result['protocol'] = {
+        'version': 'confluence-risk-v1',
+        'name': 'Fixed confluence stock research',
+        'status': 'Unvalidated full-sample paper research; no unseen-data test yet.',
+        'rules': [
+            'Long shares, one symbol and one position at a time; 50 daily bars of warmup.',
+            'Prior close: MACD(12,26) > EMA9 signal, close > EMA20, EMA20 > EMA50, and volume >= 1.25 times the prior 20-session average. Missing/nonpositive volume skips the signal.',
+            'Enter next observed open plus slippage. Continuing condition, not a crossover; later-session reentry is allowed. No same-session reentry.',
+            'Whole shares: planned stop loss including fees and slippage <= 1% of current simulated equity; entry cost including fees <= 20%. Skip if one share does not fit. Cash earns zero.',
+            'Stop 7.5% below slipped entry; target 15% above it. Exit next open if the prior close fails the signal. Stop checked first if both touched; gaps can exceed the planned risk.',
+            'Maximum hold: 14 calendar days. Exit at deadline open, or prior observed close if the next session is too late. Missing bars can bias this schedule. Liquidate at final sample close.',
+            'Fees and slippage below are research assumptions per side, not broker-verified costs. No news, earnings, liquidity or portfolio-wide risk filter.',
+        ],
+    }
+    result['assumptions'].append('Fixed whole-share sizing: 1% cost-aware planned stop risk and 20% entry-cost cap per position. Gaps can exceed planned risk. Uninvested cash earns zero.')
+    return result

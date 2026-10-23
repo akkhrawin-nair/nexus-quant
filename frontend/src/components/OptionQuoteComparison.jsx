@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import DimeEvidence from './DimeEvidence'
 import { marketDate } from '../lib/options'
 import { compareOptionSnapshots, saveOptionComparison, loadOptionComparisons, recordBrokerExecution, OPTION_COMPARISONS_KEY } from '../lib/optionComparison'
 import './OptionQuoteComparison.css'
@@ -96,6 +97,7 @@ export default function OptionQuoteComparison() {
   return <details className="option-quote-comparison"><summary>Compare and save broker quotes</summary>
     <section aria-label="Broker quote comparison">
       <h3>Compare two exact-contract snapshots</h3><p>Copy the bid, ask and source timestamp from Dime/Webull or another source. This free manual tool does not connect to those accounts. Ask is the buy reference; bid is the sell reference.</p>
+      {history.journal&&<DimeEvidence records={history.journal.records}/>}
       <p>Enter source times in your browser timezone: <strong>{Intl.DateTimeFormat().resolvedOptions().timeZone}</strong>. Convert broker-displayed times when needed. Fees default to zero; enter the charges you expect.</p>
       <form onSubmit={compare}>
         <SnapshotFields label="Snapshot A" value={a} change={(key,value)=>change(setA,key,value)}/>
@@ -115,7 +117,7 @@ export default function OptionQuoteComparison() {
         {history.journal && <BrokerExecutionEvidence records={history.journal.records}/>}
         {history.error && <p role="alert" className="research-error">{history.error}</p>}
         <button type="button" disabled={!!history.journal && !history.journal.records.length} onClick={exportHistory}>{history.error ? 'Export preserved comparison data' : 'Export comparison history'}</button>
-        <p className="option-comparison-note">Up to 200 records in this browser. Showing the latest {savedRows.length}; export includes all saved comparisons. Export before clearing browser storage. No cloud backup or import is included.</p>
+        <p className="option-comparison-note">Up to 200 records in this browser. Showing the latest {savedRows.length}; export includes all saved comparisons. Export before clearing browser storage. Restore JSON exports through Backups on the dashboard; no cloud backup is included.</p>
         {history.journal?.records.length>10 && <button type="button" onClick={()=>setShowAll(previous=>!previous)}>{showAll ? 'Show latest 10 comparisons' : 'Show all saved comparisons'}</button>}
         {savedRows.map(({record,comparison})=><details key={record.id} className="option-saved-comparison"><summary>{record.a.source} vs {record.b.source} · {record.a.symbol} · saved {new Date(record.savedAt).toLocaleString()}{record.orderTicket ? ` · ${record.executions?.length || 0} execution report(s)` : ''}</summary>{record.orderTicket && <BrokerExecutionReview record={record} onRecord={addExecution}/>}<ComparisonResult comparison={comparison} now={now} historical/></details>)}
       </section>

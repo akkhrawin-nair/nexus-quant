@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import CatalystJournal from './CatalystJournal'
 import { ToolModal } from './ResearchTools'
 import TradingChart from './TradingChart'
 import DataQualityNotice from './DataQualityNotice'
@@ -125,6 +126,7 @@ export default function AnalystDesk({onClose,initialSymbol='EOSE'}) {
         {data.context.notes.map(note=><article className="analyst-note" key={note.url}><h4><a href={note.url} target="_blank" rel="noreferrer">{note.title}</a></h4><small>Published {note.date} · Primary issuer source</small><p><strong>Reported fact:</strong> {note.fact}</p><p><strong>Interpretation:</strong> {note.interpretation}</p></article>)}
         <h4>Known scheduled catalysts</h4>{data.context.events.length ? <ul>{data.context.events.map(event=><li key={event.url}><a href={event.url} target="_blank" rel="noreferrer">{event.date} · {event.title}</a> · {event.window.replaceAll('_',' ')}</li>)}</ul> : <p>No future catalyst has been verified in this maintained brief. Check the issuer calendar; this does not mean no event risk.</p>}
       </section>
+      <CatalystJournal key={symbol} symbol={symbol}/>
       <section aria-label="Retrieved headlines"><h3>Additional headlines · not editorially reviewed</h3>
         {!news ? <p role="status">Checking the news feed…</p> : news.error ? <p>{news.error}</p> : <>
           <DataQualityNotice quality={news.data.data_quality}/>
