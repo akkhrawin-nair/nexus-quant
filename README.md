@@ -22,7 +22,9 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. Add tickers or use **Sync market data** to save the default watchlist. An empty fresh database displays an explicit empty state. Data fetches need internet access; failures are reported, and saved observations remain available. Refreshing the page polls saved records; **Sync market data** actually refreshes provider observations.
+Open **http://127.0.0.1:5173**. Add tickers or use **Sync market data** to save the default watchlist. An empty fresh database displays an explicit empty state. Data fetches need internet access; failures are reported, and saved observations remain available. **Reload saved data every 30s** only reads the database. **Sync market data** bypasses the history cache and fetches provider observations. Automatic provider sync is enabled by default when any receipt is unknown or older than six hours, with a persistent 15-minute retry cooldown and an opt-out. It checks every minute and on window focus while the dashboard is open; it does not run when the app is closed.
+
+The dashboard shows up to **three bullish and three bearish stock watch candidates** from completed daily bars. Close/EMA20, EMA20/EMA50 and MACD/signal must agree. RSI and relative volume contribute to ranking; dates, evidence and reassessment conditions are visible. Old or unknown snapshots, insufficient histories and mixed signals are excluded; lists are never padded. These are technical research candidates, not calibrated forecasts or live execution prices. Stock session dates are shown separately from newer crypto sessions. The approximate weekday close filter does not model all exchange holidays or early closes.
 
 For cloning/updating on another PC, a larger starter watchlist and browser-data
 transfer limits, see [Windows PC setup](docs/windows-pc-setup.md).

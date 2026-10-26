@@ -173,13 +173,20 @@ class TriggerIngest(ResearchView):
         if not _ingestion_lock.acquire(blocking=False):
             return Response({'error': 'An ingestion cycle is already running.'}, status=409)
         try:
-            result = ingest_market_data()
+            result = ingest_market_data(force_refresh=True)
         finally:
             _ingestion_lock.release()
         status = 'partial' if result['failed'] else 'success'
         return Response({**result, 'status': status,
                          'message': f"{result['created']} created, {result['updated']} updated, {result['failed']} symbols failed."},
                         status=200 if not result['failed'] else 207)
+
+
+class WatchCandidatesView(ResearchView):
+    def get(self, request):
+        from api.services.watch_candidates import rank_watch_candidates
+        symbols=MarketPrice.objects.order_by().values_list('symbol','asset_type').distinct()
+        return Response(rank_watch_candidates({symbol:(kind,stored_history(symbol) if kind=='Stock' else None) for symbol,kind in symbols}))
 
 
 class CandleDataView(ResearchView):

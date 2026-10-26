@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, BarChart3, RefreshCw, Search, Plus, Star, Bell, BookOpen, Briefcase, ShieldCheck } from 'lucide-react'
 import { apiRequest, compareMacdStrength } from './lib/api'
 import { matchingAlerts } from './lib/alerts'
@@ -6,6 +6,9 @@ import DataQualityNotice from './components/DataQualityNotice'
 import TradingChart from './components/TradingChart'
 import PaperDeadlineBanner from './components/PaperDeadlineBanner'
 import OptionPaperDeadlineBanner from './components/OptionPaperDeadlineBanner'
+import WatchCandidates from './components/WatchCandidates'
+import useMarketSync from './lib/useMarketSync'
+import { providerFreshness } from './lib/marketSync'
 import './App.css'
 import './Dashboard.css'
 
@@ -35,6 +38,10 @@ export default function Dashboard() {
   const [latency, setLatency] = useState(null)
   const [poll, setPoll] = useState(true)
   const mutation = useRef(null)
+  const onProviderUpdated=useCallback(()=>setRevision(n=>n+1),[])
+  const sync=useMarketSync(feed.signals,!feed.loading&&!feed.error,onProviderUpdated)
+  const dataBusy=busy||sync.busy
+  const freshness=providerFreshness(feed.signals)
   useEffect(() => () => mutation.current?.abort(), [])
   useEffect(() => {
     let controller
@@ -94,7 +101,7 @@ export default function Dashboard() {
   }), [feed.signals, mode, search, category, favorites, sort])
 
   const mutate = async (path, body) => {
-    if (busy) return
+    if (dataBusy) return
     mutation.current?.abort()
     const controller = new AbortController()
     mutation.current = controller
@@ -118,7 +125,7 @@ export default function Dashboard() {
   }
   const buttons = [['analyst','Analyst desk','วิเคราะห์หุ้นและข่าว'],['options','Options bid / ask','คำนวณ Bid / Ask ออปชัน'],['backtest','Backtest','ทดสอบย้อนหลัง'],['optimizer','Allocation','สัดส่วนพอร์ต'],['correlation','Correlation','สหสัมพันธ์'],['risk','Risk scenarios','แบบจำลองความเสี่ยง'],['news','News','ข่าว'],['indicator','Indicators','ตัวชี้วัด'],['paper','Paper portfolio','พอร์ตจำลอง'],['education','Research guide','แนวทางวิจัย'],['alerts','Alerts','การแจ้งเตือน']]
   buttons.unshift(['brief','Daily brief','Daily brief'],['backups','Backups','Backups'])
-  const latestDate = feed.signals.map(s => s.signal_date).sort().at(-1)
+  const latestDate = freshness.stockSession||freshness.latestSession
   const bullishCount = feed.signals.filter(s => s.macd > s.macd_signal).length
   return <div className="minimal-app-root reliability-app">
     <header className="minimal-header">
@@ -131,14 +138,17 @@ export default function Dashboard() {
       <section className="kappa-intro">
         <div><p className="kappa-eyebrow">{label('PERSONAL MARKET RESEARCH','เครื่องมือวิจัยตลาดส่วนบุคคล')}</p><h1>{label('Understand the data. Measure the risk.','เข้าใจข้อมูล ประเมินความเสี่ยง')}</h1>
           <p>{label('Observed market history, transparent indicators, and a local paper-trading journal.','ข้อมูลตลาดย้อนหลัง ตัวชี้วัดที่โปร่งใส และบันทึกการซื้อขายจำลอง')}</p></div>
-        <button disabled={busy} onClick={() => mutate('/api/trigger-ingest/',{})}><RefreshCw size={16}/>{busy ? label('Syncing…','กำลังอัปเดต…') : label('Sync market data','อัปเดตข้อมูลตลาด')}</button>
+        <div className="market-sync-controls"><button disabled={dataBusy} onClick={sync.refresh}><RefreshCw size={16}/>{sync.busy ? label('Syncing…','กำลังอัปเดต…') : label('Sync market data','อัปเดตข้อมูลตลาด')}</button><label><input type="checkbox" checked={sync.enabled} onChange={e=>sync.toggle(e.target.checked)}/>{label('Auto-sync stale provider data','อัปเดตข้อมูลเก่าอัตโนมัติ')}</label></div>
       </section>
-      <DataQualityNotice lang={lang} quality={{source:'Yahoo Finance · adjusted historical daily bars',status:'stale',observed_at:latestDate,
+      <DataQualityNotice lang={lang} quality={{source:'Yahoo Finance · adjusted historical daily bars',status:!feed.signals.length?'unavailable':freshness.needsSync?'stale':'available',observed_at:latestDate,
         limitations:[label('Prices may be delayed; the latest daily bar may be in progress. Checklist scores are heuristic agreement, not a probability of profit.','ราคาอาจล่าช้า แท่งรายวันล่าสุดอาจยังไม่ปิด คะแนนคือความสอดคล้องของตัวชี้วัด ไม่ใช่โอกาสได้กำไร'),
           label('Options, exchange order books, and earnings calendars are not connected.','ยังไม่ได้เชื่อมต่อข้อมูลออปชัน สมุดคำสั่งซื้อขาย และปฏิทินผลประกอบการ')]}}/>
       <section className="kappa-summary" aria-label="Market research summary">
         {[[label('Tracked assets','สินทรัพย์ที่ติดตาม'),feed.signals.length],[label('MACD above signal','MACD เหนือเส้นสัญญาณ'),bullishCount],[label('MACD at/below signal','MACD เท่ากับ/ต่ำกว่าเส้นสัญญาณ'),feed.signals.length-bullishCount],[label('Latest stored session','วันที่ข้อมูลล่าสุด'),latestDate || '—']].map(([name,value]) => <div key={name}><span>{name}</span><strong>{value}</strong></div>)}
       </section>
+      <p className="market-provider-receipt">Provider sync fetches Yahoo daily history; 30-second reload only rereads saved data. Oldest known provider receipt: {freshness.oldestReceipt?new Date(freshness.oldestReceipt).toLocaleString():'Unknown'}. Unknown receipts: {freshness.unknownReceipts}. Auto-sync uses a six-hour age threshold and a 15-minute retry cooldown. Stock cards use the stock session date; crypto can have a later date.</p>
+      {sync.message&&<p role="status" className="market-provider-receipt">{sync.message}</p>}{sync.error&&<div role="alert" className="kappa-error">{sync.error}</div>}
+      <WatchCandidates revision={revision} refreshing={sync.busy} lang={lang} onAnalyze={symbol=>setTool({kind:'analyst',symbol})}/>
       <PaperDeadlineBanner onReview={()=>setTool({kind:'paper'})}/>
       <OptionPaperDeadlineBanner onReview={()=>setTool({kind:'options',focusJournal:true})}/>
       <nav className="kappa-tools" aria-label={label('Research tools','เครื่องมือวิจัย')}>{buttons.map(([kind,en,thai]) => <button key={kind} onClick={() => setTool({kind})}>{kind==='paper' ? <Briefcase size={15}/> : kind==='alerts' ? <Bell size={15}/> : kind==='education' ? <BookOpen size={15}/> : <BarChart3 size={15}/>} {label(en,thai)}</button>)}</nav>
@@ -147,13 +157,13 @@ export default function Dashboard() {
       {matches.length>0 && <aside className="kappa-alerts"><Bell size={18}/><div>{label('Stored observation matches','ข้อมูลที่บันทึกตรงตามเงื่อนไข')}: {matches.map(a=>`${a.ticker} ${a.condition} ${a.targetValue}`).join(' · ')}<small>{label('Checked while this page is open; these are not live execution alerts.','ตรวจสอบขณะเปิดหน้านี้ ไม่ใช่การแจ้งเตือนราคาซื้อขายแบบสด')}</small></div></aside>}
       <section className="kappa-watchlist">
         <div className="kappa-watchlist-heading"><h2>{label('Market watchlist','รายการติดตามตลาด')}</h2><form onSubmit={e=>{e.preventDefault(); mutate('/api/tickers/add/',{symbol:ticker.trim().toUpperCase()})}}>
-          <label className="sr-only" htmlFor="new-ticker">{label('New ticker','เพิ่มสัญลักษณ์')}</label><input id="new-ticker" placeholder={label('Add ticker, e.g. MSFT','เพิ่มสัญลักษณ์ เช่น MSFT')} value={ticker} onChange={e=>setTicker(e.target.value)} required maxLength={20}/><button disabled={busy}><Plus size={16}/>{label('Add','เพิ่ม')}</button></form></div>
+          <label className="sr-only" htmlFor="new-ticker">{label('New ticker','เพิ่มสัญลักษณ์')}</label><input id="new-ticker" placeholder={label('Add ticker, e.g. MSFT','เพิ่มสัญลักษณ์ เช่น MSFT')} value={ticker} onChange={e=>setTicker(e.target.value)} required maxLength={20}/><button disabled={dataBusy}><Plus size={16}/>{label('Add','เพิ่ม')}</button></form></div>
         <div className="kappa-filters"><label className="kappa-search"><Search size={17}/><input id="ticker-search" placeholder={label('Search ticker or type…  Ctrl K','ค้นหาสัญลักษณ์หรือประเภท… Ctrl K')} value={search} onChange={e=>setSearch(e.target.value)} aria-label={label('Search watchlist','ค้นหารายการติดตาม')}/></label>
           <select value={mode} onChange={e=>setMode(e.target.value)} aria-label="MACD direction"><option value="all">{label('All directions','ทุกทิศทาง')}</option><option value="buy">MACD &gt; Signal</option><option value="sell">MACD ≤ Signal</option></select>
           <select value={sort} onChange={e=>setSort(e.target.value)} aria-label="Sort assets"><option value="symbol">{label('Symbol','สัญลักษณ์')}</option><option value="price">{label('Highest price','ราคาสูงสุด')}</option><option value="macd">{label('MACD magnitude','ขนาด MACD')}</option><option value="change">{label('Daily change','การเปลี่ยนแปลงรายวัน')}</option></select>
           <button onClick={()=>setView(v=>v==='cards'?'heatmap':'cards')}>{view==='cards'?label('Heatmap','แผนที่ความร้อน'):label('Cards','การ์ด')}</button><button onClick={exportSignals} disabled={!signals.length}>CSV</button>
         </div>
-        <div className="kappa-categories">{['ALL','Favorites','Stock','ETF','Crypto','Commodity','Checklist 80+'].map(c=><button key={c} aria-pressed={category===c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c==='Favorites'?<Star size={13}/>:null}{c}</button>)}<label className="kappa-poll"><input type="checkbox" checked={poll} onChange={e=>setPoll(e.target.checked)}/>{label('Refresh every 30s','รีเฟรชทุก 30 วินาที')}</label></div>
+        <div className="kappa-categories">{['ALL','Favorites','Stock','ETF','Crypto','Commodity','Checklist 80+'].map(c=><button key={c} aria-pressed={category===c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c==='Favorites'?<Star size={13}/>:null}{c}</button>)}<label className="kappa-poll"><input type="checkbox" checked={poll} onChange={e=>setPoll(e.target.checked)}/>{label('Reload saved data every 30s','โหลดข้อมูลที่บันทึกทุก 30 วินาที')}</label></div>
         {feed.loading ? <p role="status" className="kappa-empty">{label('Loading stored market observations…','กำลังโหลดข้อมูลตลาดที่บันทึกไว้…')}</p> : !signals.length ? <div className="kappa-empty"><Search size={32}/><h3>{label('No matching observations','ไม่มีข้อมูลที่ตรงกัน')}</h3><p>{label('Sync market data or add a ticker. If data is already saved, adjust your search and filters.','อัปเดตข้อมูลตลาดหรือเพิ่มสัญลักษณ์ หากมีข้อมูลอยู่แล้วให้ปรับการค้นหาและตัวกรอง')}</p></div> : view==='heatmap' ?
           <div className="kappa-heatmap">{signals.map(s=><button key={s.symbol} style={{background:s.daily_change_pct>=0?'#047857':'#be123c'}} onClick={()=>setTool({kind:'chart',symbol:s.symbol})}><strong>{s.symbol}</strong><span>{fmt(s.daily_change_pct)}%</span><small>{s.signal_date}</small></button>)}</div> :
           <div className="kappa-card-grid">{signals.map(s=><article className="minimal-card kappa-signal-card" key={s.symbol}>
